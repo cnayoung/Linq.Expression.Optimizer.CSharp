@@ -6,13 +6,11 @@ using System.Linq.Expressions;
 using Methods;
 using FsUnit;
 
-namespace Tests
-{
-    record Itm (int x);
+namespace Tests {
+    record Itm(int x);
 
     // The original F# code for these queries has been rewritten here using C# query syntax wherever possible.
-    internal static class Queries
-    {
+    internal static class Queries {
         public static List<T> ExecuteExpression<T>(Expression e) =>
             ((IEnumerable)Expression.Lambda(e).Compile().DynamicInvoke()).Cast<T>().ToList();
 
@@ -29,17 +27,29 @@ namespace Tests
             from x in arr.AsQueryable()
             select !(!(!(x > 3))) && true;
 
-
-        public static IQueryable<Tuple<int, int>> Qry2(IList<int> arr)
-        {
-            var q1 = from x in arr.AsQueryable()
-                     where ((true && true) || (true && true))
-                     select x + 3;
+        /// <summary>
+        /// There is no way to 'cheat' the C# compiler using query syntax to prevent it from optimizing
+        /// out the redundant condition expression (where (true && true) || (true && true)). We have to
+        /// construct the expression directly to test the ability of the expression optimizer code to
+        /// handle this redundancy.
+        /// </summary>
+        public static IQueryable<Tuple<int, int>> Qry2(IList<int> arr) {
+            var parameterExpression = Expression.Parameter(typeof(int), "x");
+            var q1 = arr.AsQueryable().Where(Expression.Lambda<Func<int, bool>>(
+                Expression.OrElse(
+                    Expression.AndAlso(
+                        Expression.Constant(true, typeof(bool)),
+                        Expression.Constant(true, typeof(bool))),
+                    Expression.AndAlso(
+                        Expression.Constant(true, typeof(bool)),
+                        Expression.Constant(true, typeof(bool)))),
+                parameterExpression)).Select(Expression.Lambda<Func<int, int>>(
+                Expression.Add(parameterExpression, Expression.Constant(3, typeof(int))), parameterExpression));
 
             return from x in q1
-            let x2 = (x - 1)
-            let x3 = (x + 1)
-            select Tuple.Create(x2, x3);
+                   let x2 = (x - 1)
+                   let x3 = (x + 1)
+                   select Tuple.Create(x2, x3);
         }
 
         public static IQueryable<Tuple<int, int>> Qry3(IList<int> arr) =>
@@ -52,8 +62,7 @@ namespace Tests
         /// out the redundant condition expression (true ? x | x). We have to construct the expression
         /// directly to test the ability of the expression optimizer code to handle this redundancy.
         /// </summary>
-        public static IQueryable<int> Qry4(IList<int> arr)
-        {
+        public static IQueryable<int> Qry4(IList<int> arr) {
             var paramExpr = Expression.Parameter(typeof(int), "x");
             var expr = (MethodCallExpression)arr.AsQueryable().OrderByDescending(x => x).ThenBy(x => x)
                 .Select(x => x > 0 ? x : 1).Expression;  // Create a dummy condition expression which we will then replace.
@@ -83,7 +92,7 @@ namespace Tests
           from x1 in arr.AsQueryable()
           join x2 in arr.AsQueryable()
           on x1 + 1 equals x2 into g
-          join x3 in arr.AsQueryable() 
+          join x3 in arr.AsQueryable()
           on x1 equals x3
           select Tuple.Create(x1, x3);
 
@@ -97,7 +106,8 @@ namespace Tests
         public static IQueryable<int> Qry10(IList<int> arr) =>
           from x in arr.AsQueryable()
           where (from y in arr.AsQueryable()
-                 where x == -y select y).Any()
+                 where x == -y
+                 select y).Any()
           select x;
 
         public static int cond1 = 12;
@@ -131,8 +141,7 @@ namespace Tests
             select (x > 0 && x > 1 && x > 2 && x > 3 && x > 4 && x > 0 && x > 1 && x > 2 && x > 3 && x > 4) ||
             x < 0 || x < 1 || x < 2 || x < 3 || x < 4 || x < 0 || x < 1 || x < 2 || x < 3 || x < 4;
 
-        public static IQueryable<bool> Qry14(IList<int> arr)
-        {
+        public static IQueryable<bool> Qry14(IList<int> arr) {
             var aq = arr.AsQueryable();
 
             return from x in arr.AsQueryable()
@@ -142,55 +151,44 @@ namespace Tests
                    select !(!(!(x > 3))) && true;
         }
 
-        public static IQueryable<int> Qry15(IList<int> arr)
-        {
+        public static IQueryable<int> Qry15(IList<int> arr) {
             int? y = null;
             object? xx = new int?();
 
             return from x in arr.AsQueryable()
-            where !(((int?)xx).HasValue || (int?)xx > 2) && (!y.HasValue || y.Value > x) && true
-            select 1;
+                   where !(((int?)xx).HasValue || (int?)xx > 2) && (!y.HasValue || y.Value > x) && true
+                   select 1;
         }
 
         private static Itm ToImts(int x) => new(x);
 
-        public static IQueryable<Tuple<int, int>> Qry16(IList<int> arr)
-        {
+        public static IQueryable<Tuple<int, int>> Qry16(IList<int> arr) {
             var asItms = arr.Select(ToImts);
             var arr2 = asItms.AsQueryable();
             var onlyX = true;
 
             return from i in arr2
-                join j in arr2
-                    on i.x equals j.x
-                where ((!onlyX) || (onlyX && i.x == 3)) && arr2.Any(sl => false || sl.x == j.x && j.x != 1)
-                select Tuple.Create(i.x, j.x);
+                   join j in arr2
+                       on i.x equals j.x
+                   where ((!onlyX) || (onlyX && i.x == 3)) && arr2.Any(sl => false || sl.x == j.x && j.x != 1)
+                   select Tuple.Create(i.x, j.x);
         }
 
-        public static void TestEq<a, b>(int[] xs, Func<IList<int>, a> qry) where a : IQueryable<b>
-        {
+        public static void TestEq<a, b>(int[] xs, Func<IList<int>, a> qry) where a : IQueryable<b> {
             var res = TestExpression<b, object?>(qry(xs.ToList()));
             Assert.AreEqual(res.Item1, res.Item2);
         }
-        public static void TestLt<a>(int[] xs, Func<IList<int>, IQueryable<a>> qry) 
-        {
+        public static void TestLt<a>(int[] xs, Func<IList<int>, IQueryable<a>> qry) {
             var expr = qry(xs.ToList()).Expression;
             var optimized = ExpressionOptimizer.Visit(expr);
             var o = optimized.ToString();
             var o2 = o.ToString();
-
-            System.Diagnostics.Trace.WriteLine(expr.ToString());
-            System.Diagnostics.Trace.WriteLine(optimized.ToString());
             Assert.Less(optimized.ToString().Length, expr.ToString().Length);
-
         }
 
-        public static void TestLteq<a>(int[] xs, Func<IList<int>, IQueryable<a>> qry)
-        {
+        public static void TestLteq<a>(int[] xs, Func<IList<int>, IQueryable<a>> qry) {
             var expr = qry(xs.ToList()).Expression;
             var optimized = ExpressionOptimizer.Visit(expr);
-            System.Diagnostics.Trace.WriteLine(expr.ToString());
-            System.Diagnostics.Trace.WriteLine(optimized.ToString());
             Assert.LessOrEqual(optimized.ToString().Length, expr.ToString().Length);
         }
     }

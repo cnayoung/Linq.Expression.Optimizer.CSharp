@@ -9,143 +9,119 @@ using Methods;
 
 namespace Tests;
 
-public class UnitTests
-{
+public class UnitTests {
     [Fact]
-    public static void ExpressionOptimizerGeneratesEqualResultsOn1_2_3_4_5Array()
-    {
+    public static void ExpressionOptimizerGeneratesEqualResultsOn1_2_3_4_5Array() {
         Queries.TestEq<IQueryable<bool>, bool>(new[] { 1, 2, 3, 4, 5 }, Queries.Qry1);
     }
 
     [Fact]
-    public void ExpressionOptimizerGeneratesSmallerExpressionOn1_2_3_4_5Array()
-    {
+    public void ExpressionOptimizerGeneratesSmallerExpressionOn1_2_3_4_5Array() {
         Queries.TestLt(new[] { 1, 2, 3, 4, 5 }, Queries.Qry1);
     }
 
     [Property]
-    public void ExpressionOptimizerGeneratesEqualResults1(int[] xs)
-    {
+    public void ExpressionOptimizerGeneratesEqualResults1(int[] xs) {
         Queries.TestEq<IQueryable<bool>, bool>(xs, Queries.Qry1);
     }
 
     [Property]
-    public void ExpressionOptimizerGenerateSmallerExpression1(int[] xs)
-    {
+    public void ExpressionOptimizerGenerateSmallerExpression1(int[] xs) {
         Queries.TestLt(xs, Queries.Qry1);
     }
 
     [Property]
-    public void ExpressionOptimizerGeneratesEqualResults2(int[] xs)
-    {
+    public void ExpressionOptimizerGeneratesEqualResults2(int[] xs) {
         Queries.TestEq<IQueryable<Tuple<int, int>>, Tuple<int, int>>(xs, Queries.Qry2);
     }
 
     [Property]
-    public void ExpressionOptimizerGeneratesSmallerExpression2(int[] xs)
-    {
+    public void ExpressionOptimizerGeneratesSmallerExpression2(int[] xs) {
         Queries.TestLteq(xs, Queries.Qry2);
     }
 
     [Property]
-    public void ExpressionOptimizerGeneratesEqualResults3(int[] xs)
-    {
-        Queries.TestEq<IQueryable<Tuple<int, int>>,Tuple<int, int>>(xs, Queries.Qry3);
+    public void ExpressionOptimizerGeneratesEqualResults3(int[] xs) {
+        Queries.TestEq<IQueryable<Tuple<int, int>>, Tuple<int, int>>(xs, Queries.Qry3);
     }
 
     [Property]
-    public void ExpressionOptimizerGeneratesSmallerExpression3(int[] xs)
-    {
+    public void ExpressionOptimizerGeneratesSmallerExpression3(int[] xs) {
         Queries.TestLteq(xs, Queries.Qry3);
     }
 
     [Property]
-    public void ExpressionOptimizerGeneratesEqualResults4(int[] xs)
-    {
+    public void ExpressionOptimizerGeneratesEqualResults4(int[] xs) {
         Queries.TestEq<IQueryable<int>, int>(xs, Queries.Qry4);
     }
 
     [Property]
-    public void ExpressionOptimizerGeneratesSmallerExpression4(int[] xs)
-    {
+    public void ExpressionOptimizerGeneratesSmallerExpression4(int[] xs) {
         Queries.TestLt(xs, Queries.Qry4);
     }
 
     [Property]
-    public void ExpressionOptimizerGeneratesEqualResults5()
-    {
+    public void ExpressionOptimizerGeneratesEqualResults5() {
         Queries.TestEq<IQueryable<Tuple<IGrouping<int, int>, int, int>>, Tuple<IGrouping<int, int>, int, int>>(new[] { 2, -2 }, Queries.Qry5);
     }
 
     [Property]
-    public void ExpressionOptimizerGeneratesSmallerExpression5(int[] xs)
-    {
+    public void ExpressionOptimizerGeneratesSmallerExpression5(int[] xs) {
         Queries.TestLteq(xs, Queries.Qry5);
     }
 
     [Property]
-    public void ExpressionOptimizerGeneratesEqualResults6(int[] xs)
-    {
+    public void ExpressionOptimizerGeneratesEqualResults6(int[] xs) {
         Queries.TestEq<IQueryable<Tuple<int, int>>, Tuple<int, int>>(xs, Queries.Qry6);
     }
 
     [Property]
-    public void ExpressionOptimizerGeneratesSmallerExpression6(int[] xs)
-    {
+    public void ExpressionOptimizerGeneratesSmallerExpression6(int[] xs) {
         Queries.TestLteq(xs, Queries.Qry6);
     }
 
     [Property]
-    public void ExpressionOptimizerGeneratesEqualResults7(int[] xs)
-    {
+    public void ExpressionOptimizerGeneratesEqualResults7(int[] xs) {
         Queries.TestEq<IQueryable<bool>, bool>(xs, Queries.Qry7);
     }
 
     [Property]
-    public void ExpressionOptimizerGeneratesSmallerExpression7(int[] xs)
-    {
+    public void ExpressionOptimizerGeneratesSmallerExpression7(int[] xs) {
         Queries.TestLt(xs, Queries.Qry7);
     }
 
     [Property]
-    public void ExpressionOptimizerGeneratesEqualResults8(int[] xs)
-    {
+    public void ExpressionOptimizerGeneratesEqualResults8(int[] xs) {
         Queries.TestEq<IQueryable<Tuple<int, int>>, Tuple<int, int>>(xs, Queries.Qry8);
     }
 
     [Property]
-    public void ExpressionOptimizerGeneratesSmallerExpression8(int[] xs)
-    {
+    public void ExpressionOptimizerGeneratesSmallerExpression8(int[] xs) {
         Queries.TestLteq(xs, Queries.Qry8);
     }
 
     [Property]
-    public void ExpressionOptimizerGeneratesEqualResults9(int[] xs)
-    {
+    public void ExpressionOptimizerGeneratesEqualResults9(int[] xs) {
         Queries.TestEq<IQueryable<Tuple<bool, int, string>>, Tuple<bool, int, string>>(xs, Queries.Qry9);
     }
 
     [Property]
-    public void ExpressionOptimizerGeneratesSmallerExpression9(int[] xs)
-    {
+    public void ExpressionOptimizerGeneratesSmallerExpression9(int[] xs) {
         Queries.TestLteq(xs, Queries.Qry9);
     }
 
     [Property]
-    public void ExpressionOptimizerGeneratesEqualResults10(int[] xs)
-    {
+    public void ExpressionOptimizerGeneratesEqualResults10(int[] xs) {
         Queries.TestEq<IQueryable<int>, int>(xs, Queries.Qry10);
     }
 
     [Property]
-    public void ExpressionOptimizerGeneratesSmallerExpression10(int[] xs)
-    {
+    public void ExpressionOptimizerGeneratesSmallerExpression10(int[] xs) {
         Queries.TestLteq(xs, Queries.Qry10);
     }
 
     [Property]
-    public void ExpressionOptimizerGeneratesEqualResults11(int[] xs)
-    {
+    public void ExpressionOptimizerGeneratesEqualResults11(int[] xs) {
         Queries.TestEq<IQueryable<int>, int>(xs, Queries.Qry11);
     }
 
@@ -153,81 +129,68 @@ public class UnitTests
     /// This test is broken in the F# version (December 2021).
     /// </summary>
     [Property]
-    public void ExpressionOptimizerGeneratesSmallerExpression11(int[] xs)
-    {
+    public void ExpressionOptimizerGeneratesSmallerExpression11(int[] xs) {
         // The original F# test uses TestEq...and fails.
         Queries.TestLteq(xs, Queries.Qry11);
     }
 
     [Property]
-    public void ExpressionOptimizerGeneratesEqualResults12(int[] xs)
-    {
+    public void ExpressionOptimizerGeneratesEqualResults12(int[] xs) {
         Queries.TestEq<IQueryable<int>, int>(xs, Queries.Qry12);
     }
 
     [Property]
-    public void ExpressionOptimizerGeneratesSmallerExpression12(int[] xs)
-    {
+    public void ExpressionOptimizerGeneratesSmallerExpression12(int[] xs) {
         Queries.TestLteq(xs, Queries.Qry12);
     }
 
     [Property]
-    public void ExpressionOptimizerGeneratesEqualResults13(int[] xs)
-    {
+    public void ExpressionOptimizerGeneratesEqualResults13(int[] xs) {
         Queries.TestEq<IQueryable<bool>, bool>(xs, Queries.Qry13);
     }
 
     [Property]
-    public void ExpressionOptimizerGeneratesSmallerExpression13(int[] xs)
-    {
+    public void ExpressionOptimizerGeneratesSmallerExpression13(int[] xs) {
         Queries.TestLt(xs, Queries.Qry13);
     }
 
     [Property]
-    public void ExpressionOptimizerGeneratesEqualResults14(int[] xs)
-    {
+    public void ExpressionOptimizerGeneratesEqualResults14(int[] xs) {
         Queries.TestEq<IQueryable<bool>, bool>(xs, Queries.Qry14);
     }
 
     [Property]
-    public void ExpressionOptimizerGeneratesSmallerExpression14(int[] xs)
-    {
+    public void ExpressionOptimizerGeneratesSmallerExpression14(int[] xs) {
         Queries.TestLt(xs, Queries.Qry14);
     }
 
     [Property]
-    public void ExpressionOptimizerGeneratesEqualResults15(int[] xs)
-    {
+    public void ExpressionOptimizerGeneratesEqualResults15(int[] xs) {
         Queries.TestEq<IQueryable<int>, int>(xs, Queries.Qry15);
     }
 
     [Property]
-    public void ExpressionOptimizerGeneratesSmallerExpression15(int[] xs)
-    {
+    public void ExpressionOptimizerGeneratesSmallerExpression15(int[] xs) {
         Queries.TestLt(xs, Queries.Qry15);
     }
 
     [Property]
-    public void ExpressionOptimizerGeneratesEqualResults16(int[] xs)
-    {
+    public void ExpressionOptimizerGeneratesEqualResults16(int[] xs) {
         Queries.TestEq<IQueryable<Tuple<int, int>>, Tuple<int, int>>(xs, Queries.Qry16);
     }
 
     [Property]
-    public void ExpressionOptimizerGeneratesSmallerExpression16(int[] xs)
-    {
+    public void ExpressionOptimizerGeneratesSmallerExpression16(int[] xs) {
         Queries.TestLteq(xs, Queries.Qry16);
     }
 
     [MemoryDiagnoser()]
     [Serializable]
-    public class Benchmark
-    {
+    public class Benchmark {
         private Expression[] queries;
         internal Func<Expression, IList<object>> VisitAndExecute;
 
-        public Benchmark()
-        {
+        public Benchmark() {
             var benchmark = this;
             var t = new List<int> { 1, 2, 3, 4, 5, 6, 7, 8, 9 };
 
@@ -256,8 +219,7 @@ public class UnitTests
         }
 
         [GlobalSetup]
-        public void Setup()
-        {
+        public void Setup() {
         }
 
         /// <summary>
@@ -279,16 +241,14 @@ public class UnitTests
         /// </summary>
         /// <exception cref="ArgumentNullException"></exception>
         [Benchmark(Baseline = true)]
-        public void ExecuteDirect()
-        {
+        public void ExecuteDirect() {
             var resultsList = this.queries != null ? new List<object>[this.queries.Length] : throw new ArgumentNullException("queries");
             for (var index = 0; index < resultsList.Length; ++index)
                 resultsList[index] = Queries.ExecuteExpression<object>(this.queries[index]);
         }
 
         [Benchmark()]
-        public void ExecuteOpt1()
-        {
+        public void ExecuteOpt1() {
             var resultsList = this.queries != null ? new List<object>[this.queries.Length] : throw new ArgumentNullException("queries");
             for (var index = 0; index < resultsList.Length; ++index)
                 resultsList[index] = VisitAndExecute(this.queries[index]).ToList();

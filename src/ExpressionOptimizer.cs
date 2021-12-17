@@ -1,18 +1,19 @@
 ﻿#nullable enable
+// This is just a light-weight expression optimizer.
+// It won't do any heavy stuff...using System.Linq.Expressions;
+
 using System.Linq.Expressions;
 using System.Reflection;
 
 namespace Methods;
 
-public static class ExpressionOptimizer
-{
+public static class ExpressionOptimizer {
     /// <summary>
     ///  We want to eliminate enum-types and constants like 1 or "a".
     ///  But Constant value can be also another complex object like IQueryable.
     ///  We don't want to evaluate those!
     /// </summary>
-    public static IComparable? ConstantBasicType(Expression parentExpression, Expression expression)
-    {
+    public static IComparable? ConstantBasicType(Expression parentExpression, Expression expression) {
         IComparable? GetCorrectType(object? x) =>
             x is IComparable comparable && comparable.GetType() == parentExpression.Type
                 ? comparable
@@ -20,14 +21,12 @@ public static class ExpressionOptimizer
 
         IComparable? x;
 
-        return (expression.NodeType, e: expression) switch
-        {
+        return (expression.NodeType, e: expression) switch {
             (ExpressionType.Constant, ConstantExpression ce) when
                 parentExpression.Type.GetTypeInfo().IsPrimitive =>
                 (ce.Value) is null
                     ? null
-                    : (x = GetCorrectType(ce.Value)) switch
-                    {
+                    : (x = GetCorrectType(ce.Value)) switch {
                         null => GetCorrectType(Expression.Lambda(parentExpression).Compile().DynamicInvoke()),
                         _ => x
                     },
@@ -40,11 +39,9 @@ public static class ExpressionOptimizer
     ///   7 > 8      -->   False
     /// "G" = "G"    -->   True
     /// </summary>
-    public static Expression ReplaceConstantComparison(Expression expression)
-    {
+    public static Expression ReplaceConstantComparison(Expression expression) {
         IComparable? Constant(Expression e) =>
-            (e.NodeType, e) switch
-            {
+            (e.NodeType, e) switch {
                 (ExpressionType.Constant, ConstantExpression { Value: IComparable } constantExpression) =>
                     (IComparable)constantExpression.Value,
                 (ExpressionType.Convert, UnaryExpression parentExpr) => ConstantBasicType(parentExpr,
@@ -55,13 +52,11 @@ public static class ExpressionOptimizer
         Expression CreateBool(object b) => Expression.Constant(b, typeof(bool));
         IComparable? l, r;
 
-        return expression switch
-        {
+        return expression switch {
             BinaryExpression ce =>
                 (l = Constant(ce.Left)) != default
                     ? (r = Constant(ce.Right)) != default
-                        ? expression.NodeType switch
-                        {
+                        ? expression.NodeType switch {
                             ExpressionType.Equal => CreateBool(l.CompareTo(r) == 0),
                             ExpressionType.LessThan => CreateBool(l.CompareTo(r) < 0),
                             ExpressionType.LessThanOrEqual => CreateBool(l.CompareTo(r) <= 0),
@@ -80,11 +75,9 @@ public static class ExpressionOptimizer
     /// Purpose of this is to replace non-used anonymous types:
     /// new AnonymousObject(Item1 = x, Item2 = "").Item1    -->   x
     /// </summary>
-    public static Expression RemoveAnonymousType(Expression expression)
-    {
+    public static Expression RemoveAnonymousType(Expression expression) {
         int? idxMember;
-        return (expression.NodeType, expression) switch
-        {
+        return (expression.NodeType, expression) switch {
             // FSharp anonymous type:
             (ExpressionType.MemberAccess, MemberExpression me) when
                 me.Member.DeclaringType is { } dt &&
@@ -93,46 +86,37 @@ public static class ExpressionOptimizer
                         ? int.TryParse(me.Member.Name[4..], out var i)
                             ? i as int?
                             : null
-                        : null, me.Expression?.NodeType, me.Expression, me.Member) switch
-                {
-                    ({ } idx, ExpressionType.New, NewExpression ne, PropertyInfo p) =>
-                        ne.Arguments.Count > idx - 1 && ne.Arguments[idx - 1].Type.Equals(p.PropertyType)
-                            ? ne.Arguments[idx - 1] // We found it!
-                            : expression,
-                    _ => expression
-                },
+                        : null, me.Expression?.NodeType, me.Expression, me.Member) switch {
+                            ( { } idx, ExpressionType.New, NewExpression ne, PropertyInfo p) =>
+                                ne.Arguments.Count > idx - 1 && ne.Arguments[idx - 1].Type.Equals(p.PropertyType)
+                                    ? ne.Arguments[idx - 1] // We found it!
+                                    : expression,
+                            _ => expression
+                        },
             //CSharp anonymous type:
             (ExpressionType.MemberAccess, MemberExpression me) when
                 me.Member.DeclaringType is { } dt &&
                 (dt.Name.ToUpper().StartsWith("<>F__ANONYMOUSTYPE") || dt.Name.ToUpper().StartsWith("TUPLE")) =>
-                (me.Expression?.NodeType, me.Expression, me.Member) switch
-                {
+                (me.Expression?.NodeType, me.Expression, me.Member) switch {
                     (ExpressionType.New, NewExpression { Arguments: { } } ne, PropertyInfo p) =>
-                        ne.Arguments.Select(arg => arg switch
-                        {
+                        ne.Arguments.Select(arg => arg switch {
                             MemberExpression { Member: { } } ame when ame.Member.Name == me.Member.Name &&
                                                                       ame.Type == p.PropertyType =>
                                 (Expression)ame,
                             _ => default
-                        }).FirstOrDefault() switch
-                        {
-                            { } x => x,
+                        }).FirstOrDefault() switch { { } x => x,
                             _ when ne.Members is not null =>
-                                ne.Members.Select(m => m switch
-                                {
+                                ne.Members.Select(m => m switch {
                                     _ when m.Name == me.Member.Name =>
                                             ne.Arguments.Count > (idxMember = ne.Members.IndexOf(m))
-                                                ? ne.Arguments[idxMember.Value] switch
-                                                {
+                                                ? ne.Arguments[idxMember.Value] switch {
                                                     ParameterExpression ape when ape.Type == p.PropertyType
                                                         => (Expression)ape,
                                                     _ => default
                                                 }
                                                 : default,
                                     _ => default
-                                }).FirstOrDefault() switch
-                                {
-                                    { } x => x,
+                                }).FirstOrDefault() switch { { } x => x,
                                     _ => expression
                                 },
                             _ => expression
@@ -146,10 +130,8 @@ public static class ExpressionOptimizer
     /// <summary>
     /// if false then x else y -> y
     /// </summary>
-    public static Expression CutNotUsedCondition(Expression expression) => (expression.NodeType, expression) switch
-    {
-        (ExpressionType.Conditional, ConditionalExpression ce) => ce.Test switch
-        {
+    public static Expression CutNotUsedCondition(Expression expression) => (expression.NodeType, expression) switch {
+        (ExpressionType.Conditional, ConditionalExpression ce) => ce.Test switch {
             // For now, only direct booleans conditions are optimized to select query:
             ConstantExpression c when c.Value?.Equals(true) ?? false => ce.IfTrue,
             ConstantExpression c when c.Value?.Equals(false) ?? false => ce.IfFalse,
@@ -161,10 +143,8 @@ public static class ExpressionOptimizer
     /// <summary>
     /// not(false) -> true 
     /// </summary>
-    public static Expression NotFalseIsTrue(Expression expression) => (expression.NodeType, expression) switch
-    {
-        (ExpressionType.Not, UnaryExpression ue) => ue.Operand switch
-        {
+    public static Expression NotFalseIsTrue(Expression expression) => (expression.NodeType, expression) switch {
+        (ExpressionType.Not, UnaryExpression ue) => ue.Operand switch {
             ConstantExpression c when c.Value?.Equals(false) ?? false => Expression.Constant(true, typeof(bool)),
             ConstantExpression c when c.Value?.Equals(true) ?? false => Expression.Constant(false, typeof(bool)),
             _ => expression
@@ -179,55 +159,46 @@ public static class ExpressionOptimizer
     // Reductions:
     // [associate; commute; distribute; gather; identity; annihilate; absorb; idempotence; complement; doubleNegation; deMorgan]
 
-    internal static (object?, Type)? Value(Expression expression) => (expression.NodeType, expression) switch
-    {
+    internal static (object?, Type)? Value(Expression expression) => (expression.NodeType, expression) switch {
         (ExpressionType.Constant, ConstantExpression ce) => (ce.Value, ce.Type),
         _ => default
     };
 
     internal static (Expression, Expression, Expression)? IfThenElse(Expression expression) =>
-        (expression.NodeType, expression) switch
-        {
+        (expression.NodeType, expression) switch {
             (ExpressionType.Conditional, ConditionalExpression ce) => (ce.Test, ce.IfTrue, ce.IfFalse),
             _ => default
         };
 
-    internal static Expression? Not(Expression? expression) => (expression?.NodeType, expression) switch
-    {
+    internal static Expression? Not(Expression? expression) => (expression?.NodeType, expression) switch {
         (ExpressionType.Not, UnaryExpression ue) => (ue.Operand),
         _ => default
     };
 
-    internal static Expression? True(Expression expression) => expression switch
-    {
-        _ when Value(expression) is ({ } o, { } t) && t == typeof(bool) && (bool)o => expression,
+    internal static Expression? True(Expression expression) => expression switch {
+        _ when Value(expression) is ( { } o, { } t) && t == typeof(bool) && (bool)o => expression,
         _ => default
     };
 
-    internal static Expression? False(Expression expression) => expression switch
-    {
-        _ when Value(expression) is ({ } o, { } t) && t == typeof(bool) && !(bool)o => expression,
+    internal static Expression? False(Expression expression) => expression switch {
+        _ when Value(expression) is ( { } o, { } t) && t == typeof(bool) && !(bool)o => expression,
         _ => default
     };
 
     internal static (Expression left, Expression right)? Or(Expression expression) =>
-        (expression.NodeType, expression) switch
-        {
+        (expression.NodeType, expression) switch {
             (ExpressionType.OrElse, BinaryExpression be) => (be.Left, be.Right),
-            _ => (IfThenElse(expression)) switch
-            {
-                ({ } left, _, { } right) => (left, right),
+            _ => (IfThenElse(expression)) switch {
+                ( { } left, _, { } right) => (left, right),
                 _ => default
             }
         };
 
     internal static (Expression left, Expression right)? And(Expression expression) =>
-        (expression.NodeType, expression) switch
-        {
+        (expression.NodeType, expression) switch {
             (ExpressionType.AndAlso, BinaryExpression be) => (be.Left, be.Right),
-            _ => (IfThenElse(expression)) switch
-            {
-                ({ } left, { } right, _) => (left, right),
+            _ => (IfThenElse(expression)) switch {
+                ( { } left, { } right, _) => (left, right),
                 _ => default
             }
         };
@@ -235,109 +206,88 @@ public static class ExpressionOptimizer
     /// <summary>
     /// Not in use, would cause looping...
     /// </summary>
-    public static Expression Associate(Expression expression) => expression switch
-    {
-        _ when Or(expression) is ({ } l1, { } r1) && Or(l1) is ({ } l, { } r) => Expression.OrElse(
-            Expression.OrElse(l, r), r1),
-        _ when Or(expression) is ({ } l, { } r1) && Or(r1) is ({ } l1, { } r) => Expression.OrElse(l,
-            Expression.OrElse(l1, r)),
-        _ when And(expression) is ({ } l1, { } r1) && And(l1) is ({ } l, { } r) => Expression.AndAlso(
-            Expression.AndAlso(l, r), r1),
-        _ when And(expression) is ({ } l, { } r1) && And(r1) is ({ } l1, { } r) => Expression.AndAlso(l,
-            Expression.AndAlso(l1, r)),
+    public static Expression Associate(Expression expression) => expression switch {
+        _ when Or(expression) is ( { } l1, { } r1) && Or(l1) is ( { } l, { } r) => Expression.OrElse(Expression.OrElse(l, r), r1),
+        _ when Or(expression) is ( { } l, { } r1) && Or(r1) is ( { } l1, { } r) => Expression.OrElse(l, Expression.OrElse(l1, r)),
+        _ when And(expression) is ( { } l1, { } r1) && And(l1) is ( { } l, { } r) => Expression.AndAlso(Expression.AndAlso(l, r), r1),
+        _ when And(expression) is ( { } l, { } r1) && And(r1) is ( { } l1, { } r) => Expression.AndAlso(l, Expression.AndAlso(l1, r)),
         var noHit => noHit
     };
 
     /// <summary>
     /// We commute to AndAlso and OrElse, if not already in that format
     /// </summary>
-    public static Expression Commute(Expression expression) => expression switch
-    {
-        var comex when Or(expression) is ({ } left, { } right) && comex.NodeType != ExpressionType.OrElse =>
-            Expression.OrElse(right, left),
-        var comex when And(expression) is ({ } left, { } right) && comex.NodeType != ExpressionType.AndAlso =>
-            Expression.AndAlso(right, left),
+    public static Expression Commute(Expression expression) => expression switch {
+        var comex when Or(expression) is ( { } left, { } right) && comex.NodeType != ExpressionType.OrElse => Expression.OrElse(right, left),
+        var comex when And(expression) is ( { } left, { } right) && comex.NodeType != ExpressionType.AndAlso => Expression.AndAlso(right, left),
         var noHit => noHit
     };
 
     /// <summary>
     /// Not in use, would cause looping...
     /// </summary>
-    public static Expression Distribute(Expression expression) => expression switch
-    {
-        _ when And(expression) is ({ } p, { } r) && Or(r) is ({ } p1, { } p2) => Expression.OrElse(
-            Expression.AndAlso(p, p1), Expression.AndAlso(p, p2)),
-        _ when Or(expression) is ({ } p, { } r) && And(r) is ({ } p1, { } p2) => Expression.AndAlso(
-            Expression.OrElse(p, p1), Expression.OrElse(p, p2)),
+    public static Expression Distribute(Expression expression) => expression switch {
+        _ when And(expression) is ( { } p, { } r) && Or(r) is ( { } p1, { } p2) => Expression.OrElse(Expression.AndAlso(p, p1), Expression.AndAlso(p, p2)),
+        _ when Or(expression) is ( { } p, { } r) && And(r) is ( { } p1, { } p2) => Expression.AndAlso(Expression.OrElse(p, p1), Expression.OrElse(p, p2)),
         var noHit => noHit
     };
 
-    public static Expression Gather(Expression expression) => expression switch
-    {
-        _ when And(expression) is ({ } l, { } r) && Or(l) is ({ } p, { } p1) && Or(r) is ({ } p2, { } p3) &&
-               p.Equals(p2) => Expression.OrElse(p, Expression.AndAlso(p1, p3)),
-        _ when Or(expression) is ({ } l, { } r) && And(l) is ({ } p, { } p1) && And(r) is ({ } p2, { } p3) &&
-               p.Equals(p2) => Expression.AndAlso(p, Expression.OrElse(p1, p3)),
+    public static Expression Gather(Expression expression) => expression switch {
+        _ when And(expression) is ( { } l, { } r) && Or(l) is ( { } p, { } p1) && Or(r) is ( { } p2, { } p3) && p.Equals(p2) => Expression.OrElse(p, Expression.AndAlso(p1, p3)),
+        _ when Or(expression) is ( { } l, { } r) && And(l) is ( { } p, { } p1) && And(r) is ( { } p2, { } p3) && p.Equals(p2) => Expression.AndAlso(p, Expression.OrElse(p1, p3)),
         var noHit => noHit
     };
 
-    public static Expression Identity(Expression expression) => expression switch
-    {
-        _ when And(expression) is ({ } l, { } p) && True(l) is { } => p,
-        _ when And(expression) is ({ } p, { } r) && True(r) is { } => p,
-        _ when Or(expression) is ({ } l, { } p) && False(l) is { } => p,
-        _ when Or(expression) is ({ } p, { } r) && False(r) is { } => p,
+    public static Expression Identity(Expression expression) => expression switch {
+        _ when And(expression) is ( { } l, { } p) && True(l) is { } => p,
+        _ when And(expression) is ( { } p, { } r) && True(r) is { } => p,
+        _ when Or(expression) is ( { } l, { } p) && False(l) is { } => p,
+        _ when Or(expression) is ( { } p, { } r) && False(r) is { } => p,
         var noHit => noHit
     };
 
-    public static Expression Annihilate(Expression expression) => expression switch
-    {
-        _ when And(expression) is ({ } f, { } _) && False(f) is { } => f,
-        _ when And(expression) is ({ } _, { } f) && False(f) is { } => f,
-        _ when Or(expression) is ({ } t, { } _) && True(t) is { } => t,
-        _ when Or(expression) is ({ } _, { } t) && True(t) is { } => t,
+    public static Expression Annihilate(Expression expression) => expression switch {
+        _ when And(expression) is ( { } f, { } _) && False(f) is { } => f,
+        _ when And(expression) is ( { } _, { } f) && False(f) is { } => f,
+        _ when Or(expression) is ( { } t, { } _) && True(t) is { } => t,
+        _ when Or(expression) is ( { } _, { } t) && True(t) is { } => t,
         var noHit => noHit
     };
 
-    public static Expression Absorb(Expression expression) => expression switch
-    {
-        _ when And(expression) is ({ } p, { } r) && Or(r) is ({ } p1L, { } _) && p.Equals(p1L) => p,
-        _ when And(expression) is ({ } p, { } r) && Or(r) is ({ } _, { } p1R) && p.Equals(p1R) => p,
-        _ when And(expression) is ({ } l, { } p) && Or(l) is ({ } p1L, { } _) && p.Equals(p1L) => p,
-        _ when And(expression) is ({ } l, { } p) && Or(l) is ({ } _, { } p1R) && p.Equals(p1R) => p,
-        _ when Or(expression) is ({ } p, { } r) && And(r) is ({ } p1L, { } _) && p.Equals(p1L) => p,
-        _ when Or(expression) is ({ } p, { } r) && And(r) is ({ } _, { } p1R) && p.Equals(p1R) => p,
-        _ when Or(expression) is ({ } l, { } p) && And(l) is ({ } p1L, { } _) && p.Equals(p1L) => p,
-        _ when Or(expression) is ({ } l, { } p) && And(l) is ({ } _, { } p1R) && p.Equals(p1R) => p,
+    public static Expression Absorb(Expression expression) => expression switch {
+        _ when And(expression) is ( { } p, { } r) && Or(r) is ( { } p1L, { } _) && p.Equals(p1L) => p,
+        _ when And(expression) is ( { } p, { } r) && Or(r) is ( { } _, { } p1R) && p.Equals(p1R) => p,
+        _ when And(expression) is ( { } l, { } p) && Or(l) is ( { } p1L, { } _) && p.Equals(p1L) => p,
+        _ when And(expression) is ( { } l, { } p) && Or(l) is ( { } _, { } p1R) && p.Equals(p1R) => p,
+        _ when Or(expression) is ( { } p, { } r) && And(r) is ( { } p1L, { } _) && p.Equals(p1L) => p,
+        _ when Or(expression) is ( { } p, { } r) && And(r) is ( { } _, { } p1R) && p.Equals(p1R) => p,
+        _ when Or(expression) is ( { } l, { } p) && And(l) is ( { } p1L, { } _) && p.Equals(p1L) => p,
+        _ when Or(expression) is ( { } l, { } p) && And(l) is ( { } _, { } p1R) && p.Equals(p1R) => p,
         var noHit => noHit
     };
 
-    public static Expression Idempotence(Expression expression) => expression switch
-    {
-        _ when And(expression) is ({ } p, { } p1) && p.Equals(p1) => p,
-        _ when Or(expression) is ({ } p, { } p1) && p.Equals(p1) => p,
+    public static Expression Idempotence(Expression expression) => expression switch {
+        _ when And(expression) is ( { } p, { } p1) && p.Equals(p1) => p,
+        _ when Or(expression) is ( { } p, { } p1) && p.Equals(p1) => p,
         var noHit => noHit
     };
 
-    public static Expression Complement(Expression expression) => expression switch
-    {
-        _ when And(expression) is ({ } p, { } p1) && Not(p1)?.Equals(p) is { } => Expression.Constant(false, typeof(bool)),
-        _ when And(expression) is ({ } p, { } p1) && Not(p)?.Equals(p1) is { } => Expression.Constant(false, typeof(bool)),
-        _ when Or(expression) is ({ } p, { } p1) && Not(p1)?.Equals(p) is { } => Expression.Constant(true, typeof(bool)),
-        _ when Or(expression) is ({ } p, { } p1) && Not(p)?.Equals(p1) is { } => Expression.Constant(true, typeof(bool)),
+    public static Expression Complement(Expression expression) => expression switch {
+        _ when And(expression) is ( { } p, { } p1) && Not(p1)?.Equals(p) is { } => Expression.Constant(false, typeof(bool)),
+        _ when And(expression) is ( { } p, { } p1) && Not(p)?.Equals(p1) is { } => Expression.Constant(false, typeof(bool)),
+        _ when Or(expression) is ( { } p, { } p1) && Not(p1)?.Equals(p) is { } => Expression.Constant(true, typeof(bool)),
+        _ when Or(expression) is ( { } p, { } p1) && Not(p)?.Equals(p1) is { } => Expression.Constant(true, typeof(bool)),
         var noHit => noHit
     };
 
-    public static Expression DoubleNegation(Expression expression) => expression switch
-    {
+    public static Expression DoubleNegation(Expression expression) => expression switch {
         _ when Not(Not(expression)) is { } p => p,
         var noHit => noHit
     };
 
-    public static Expression DeMorgan(Expression expression) => expression switch
-    {
-        _ when Or(expression) is ({ } l, { } r) && Not(l) is { } p && Not(r) is { } p1 => Expression.Not(Expression.AndAlso(p, p1)),
-        _ when And(expression) is ({ } l, { } r) && Not(l) is { } p && Not(r) is { } p1 => Expression.Not(Expression.OrElse(p, p1)),
+    public static Expression DeMorgan(Expression expression) => expression switch {
+        _ when Or(expression) is ( { } l, { } r) && Not(l) is { } p && Not(r) is { } p1 => Expression.Not(Expression.AndAlso(p, p1)),
+        _ when And(expression) is ( { } l, { } r) && Not(l) is { } p && Not(r) is { } p1 => Expression.Not(Expression.OrElse(p, p1)),
         var noHit => noHit
     };
 
@@ -347,26 +297,25 @@ public static class ExpressionOptimizer
     /// Balance tree that is too much weighted to other side.
     /// The real advantage is not-so-nested-stack 
     /// </summary>
-    public static Expression Balancetree(Expression expression) => expression switch
-    {
-        _ when Or(expression) is ({ } p1, { } r1) && Or(r1) is ({ } p2, { } r2) && Or(r2) is ({ } p3, { } r3) &&
-               Or(r3) is ({ } p4, { } r4) && Or(r4) is ({ } p5, { } r5) && Or(r5) is ({ } p6, { } r6) &&
-               Or(r6) is ({ } p7, { } p8) =>
+    public static Expression Balancetree(Expression expression) => expression switch {
+        _ when Or(expression) is ( { } p1, { } r1) && Or(r1) is ( { } p2, { } r2) && Or(r2) is ( { } p3, { } r3) &&
+               Or(r3) is ( { } p4, { } r4) && Or(r4) is ( { } p5, { } r5) && Or(r5) is ( { } p6, { } r6) &&
+               Or(r6) is ( { } p7, { } p8) =>
             Expression.OrElse(Expression.OrElse(Expression.OrElse(p1, p2), Expression.OrElse(p3, p4)),
                 Expression.OrElse(Expression.OrElse(p5, p6), Expression.OrElse(p7, p8))),
-        _ when Or(expression) is ({ } l1, { } p1) && Or(l1) is ({ } l2, { } p2) && Or(l2) is ({ } l3, { } p3) &&
-               Or(l3) is ({ } l4, { } p4) && Or(l4) is ({ } l5, { } p5) && Or(l5) is ({ } l6, { } p6) &&
-               Or(l6) is ({ } p7, { } p8) =>
+        _ when Or(expression) is ( { } l1, { } p1) && Or(l1) is ( { } l2, { } p2) && Or(l2) is ( { } l3, { } p3) &&
+               Or(l3) is ( { } l4, { } p4) && Or(l4) is ( { } l5, { } p5) && Or(l5) is ( { } l6, { } p6) &&
+               Or(l6) is ( { } p7, { } p8) =>
             Expression.OrElse(Expression.OrElse(Expression.OrElse(p1, p2), Expression.OrElse(p3, p4)),
                 Expression.OrElse(Expression.OrElse(p5, p6), Expression.OrElse(p7, p8))),
-        _ when And(expression) is ({ } p1, { } r1) && And(r1) is ({ } p2, { } r2) && And(r2) is ({ } p3, { } r3) &&
-               And(r3) is ({ } p4, { } r4) && And(r4) is ({ } p5, { } r5) && And(r5) is ({ } p6, { } r6) &&
-               And(r6) is ({ } p7, { } p8) =>
+        _ when And(expression) is ( { } p1, { } r1) && And(r1) is ( { } p2, { } r2) && And(r2) is ( { } p3, { } r3) &&
+               And(r3) is ( { } p4, { } r4) && And(r4) is ( { } p5, { } r5) && And(r5) is ( { } p6, { } r6) &&
+               And(r6) is ( { } p7, { } p8) =>
             Expression.AndAlso(Expression.AndAlso(Expression.AndAlso(p1, p2), Expression.AndAlso(p3, p4)),
                 Expression.AndAlso(Expression.AndAlso(p5, p6), Expression.AndAlso(p7, p8))),
-        _ when And(expression) is ({ } l1, { } p1) && And(l1) is ({ } l2, { } p2) && And(l2) is ({ } l3, { } p3) &&
-               And(l3) is ({ } l4, { } p4) && And(l4) is ({ } l5, { } p5) && And(l5) is ({ } l6, { } p6) &&
-               And(l6) is ({ } p7, { } p8) =>
+        _ when And(expression) is ( { } l1, { } p1) && And(l1) is ( { } l2, { } p2) && And(l2) is ( { } l3, { } p3) &&
+               And(l3) is ( { } l4, { } p4) && And(l4) is ( { } l5, { } p5) && And(l5) is ( { } l6, { } p6) &&
+               And(l6) is ( { } p7, { } p8) =>
             Expression.AndAlso(Expression.AndAlso(Expression.AndAlso(p1, p2), Expression.AndAlso(p3, p4)),
                 Expression.AndAlso(Expression.AndAlso(p5, p6), Expression.AndAlso(p7, p8))),
         var noHit => noHit
@@ -377,19 +326,15 @@ public static class ExpressionOptimizer
     /// <summary>
     /// Evaluating constants to not mess with our expressions:
     /// </summary>
-    public static Expression EvaluateConstants(Expression expression) => (expression.NodeType, expression) switch
-    {
+    public static Expression EvaluateConstants(Expression expression) => (expression.NodeType, expression) switch {
         (ExpressionType.MemberAccess, MemberExpression { Expression: { } } me) =>
-            ConstantBasicType(me, me.Expression) switch
-            {
-                { } x => Expression.Constant(x, me.Type),
+            ConstantBasicType(me, me.Expression) switch { { } x => Expression.Constant(x, me.Type),
                 _ => expression
             },
         (ExpressionType.MemberAccess, MemberExpression { Expression: null } me) when
             me.Member.DeclaringType is { } dt &&
             (dt.Name.ToUpper().StartsWith("FSI_") || dt.Name.ToUpper().StartsWith("<>C__DISPLAYCLASS")) =>
-            me.Member switch
-            {
+            me.Member switch {
                 PropertyInfo p when p.GetType().FullName is { } fn && fn.StartsWith("System") =>
                     Expression.Constant(Expression.Lambda(me).Compile().DynamicInvoke(null), me.Type),
                 _ => expression
@@ -404,18 +349,14 @@ public static class ExpressionOptimizer
     ///  9  *  3     -->    27
     /// "G" + "G"    -->   "GG" 
     /// </summary>
-    public static Expression EvaluateBasicConstantMath(Expression expression) => expression switch
-    {
+    public static Expression EvaluateBasicConstantMath(Expression expression) => expression switch {
         BinaryExpression ce => !ce.Left.Type.Equals(ce.Right.Type)
             ? expression
-            : (ce.Left.NodeType, ce.Right.NodeType, ce.Left, ce.Right) switch
-            {
+            : (ce.Left.NodeType, ce.Right.NodeType, ce.Left, ce.Right) switch {
                 (ExpressionType.Constant, ExpressionType.Constant, ConstantExpression le, ConstantExpression ri) =>
                     // C# doesn't support macros so this code is a bit copy-and-paste, but it should be trivial.
-                    expression.NodeType switch
-                    {
-                        ExpressionType.Add => (le.Value, ri.Value) switch
-                        {
+                    expression.NodeType switch {
+                        ExpressionType.Add => (le.Value, ri.Value) switch {
                             (string lstr, string rstr) when le.Type == typeof(string) => Expression.Constant(lstr + rstr, le.Type),
                             (decimal lstr, decimal rstr) when le.Type == typeof(decimal) => Expression.Constant(lstr + rstr, le.Type),
                             (float lstr, float rstr) when le.Type == typeof(float) => Expression.Constant(lstr + rstr, le.Type),
@@ -431,8 +372,7 @@ public static class ExpressionOptimizer
                             (byte lstr, byte rstr) when le.Type == typeof(byte) => Expression.Constant(lstr + rstr, le.Type),
                             _ => expression
                         },
-                        ExpressionType.Subtract => (le.Value, ri.Value) switch
-                        {
+                        ExpressionType.Subtract => (le.Value, ri.Value) switch {
                             (decimal lstr, decimal rstr) when le.Type == typeof(decimal) => Expression.Constant(lstr - rstr, le.Type),
                             (float lstr, float rstr) when le.Type == typeof(float) => Expression.Constant(lstr - rstr, le.Type),
                             (double lstr, double rstr) when le.Type == typeof(double) => Expression.Constant(lstr - rstr, le.Type),
@@ -447,8 +387,7 @@ public static class ExpressionOptimizer
                             (byte lstr, byte rstr) when le.Type == typeof(byte) => Expression.Constant(lstr - rstr, le.Type),
                             _ => expression
                         },
-                        ExpressionType.Multiply => (le.Value, ri.Value) switch
-                        {
+                        ExpressionType.Multiply => (le.Value, ri.Value) switch {
                             (decimal lstr, decimal rstr) when le.Type == typeof(decimal) => Expression.Constant(lstr * rstr, le.Type),
                             (float lstr, float rstr) when le.Type == typeof(float) => Expression.Constant(lstr * rstr, le.Type),
                             (double lstr, double rstr) when le.Type == typeof(double) => Expression.Constant(lstr * rstr, le.Type),
@@ -463,8 +402,7 @@ public static class ExpressionOptimizer
                             (byte lstr, byte rstr) when le.Type == typeof(byte) => Expression.Constant(lstr * rstr, le.Type),
                             _ => expression
                         },
-                        ExpressionType.Divide => (le.Value, ri.Value) switch
-                        {
+                        ExpressionType.Divide => (le.Value, ri.Value) switch {
                             (decimal lstr, decimal rstr) when le.Type == typeof(decimal) => Expression.Constant(lstr / rstr, le.Type),
                             (float lstr, float rstr) when le.Type == typeof(float) => Expression.Constant(lstr / rstr, le.Type),
                             (double lstr, double rstr) when le.Type == typeof(double) => Expression.Constant(lstr / rstr, le.Type),
@@ -479,8 +417,7 @@ public static class ExpressionOptimizer
                             (byte lstr, byte rstr) when le.Type == typeof(byte) => Expression.Constant(lstr / rstr, le.Type),
                             _ => expression
                         },
-                        ExpressionType.Modulo => (le.Value, ri.Value) switch
-                        {
+                        ExpressionType.Modulo => (le.Value, ri.Value) switch {
                             (decimal lstr, decimal rstr) when le.Type == typeof(decimal) => Expression.Constant(lstr % rstr, le.Type),
                             (float lstr, float rstr) when le.Type == typeof(float) => Expression.Constant(lstr % rstr, le.Type),
                             (double lstr, double rstr) when le.Type == typeof(double) => Expression.Constant(lstr % rstr, le.Type),
@@ -532,16 +469,12 @@ public static class ExpressionOptimizer
     /// <summary>
     /// Does reductions just for a current node.
     /// </summary>
-    public static Expression? DoReduction(Expression? exp)
-    {
+    public static Expression? DoReduction(Expression? exp) {
         Expression opt;
-        return exp switch
-        {
-            { } => ((opt = ReductionMethods.Aggregate(exp, (acc, f) => f(acc))).Equals(exp)) switch
-            {
-                true => exp,
-                false => DoReduction(opt)
-            },
+        return exp switch { { } => ((opt = ReductionMethods.Aggregate(exp, (acc, f) => f(acc))).Equals(exp)) switch {
+            true => exp,
+            false => DoReduction(opt)
+        },
             _ => exp
         };
     }
@@ -558,14 +491,12 @@ public static class ExpressionOptimizer
             ? null
             : DoReduction(VisitChilds(expression)) ?? null;
 
-    internal static Expression VisitChilds(Expression expression)
-    {
+    internal static Expression VisitChilds(Expression expression) {
         Expression? visited;
         Expression? v, v1, v2, v3, obje, b;
         Expression[] args, visitedMethodCalls;
 
-        return expression switch
-        {
+        return expression switch {
             ConstantExpression e => WhereSelectEnumerableIteratorVisitor(e),
             ParameterExpression e => e,
             UnaryExpression e => (visited = DoVisit(e.Operand)) == e.Operand
@@ -609,15 +540,13 @@ public static class ExpressionOptimizer
     /// Look also inside a LINQ-wrapper
     /// https://referencesource.microsoft.com/#System.Core/System/Linq/Enumerable.cs,8bf16962931637d3,references
     /// </summary>
-    internal static ConstantExpression WhereSelectEnumerableIteratorVisitor(ConstantExpression ce)
-    {
+    internal static ConstantExpression WhereSelectEnumerableIteratorVisitor(ConstantExpression ce) {
         PropertyInfo? enuProp;
         object? enu, src, expr;
         FieldInfo? srcProp, exprItm;
         Expression opt;
 
-        ConstantExpression DoSetValue()
-        {
+        ConstantExpression DoSetValue() {
             exprItm?.SetValue(src, opt);
             return ce;
         }
@@ -648,14 +577,11 @@ public static class ExpressionOptimizer
     /// Expression tree visitor: go through the whole expression tree.
     /// Catches the exceptions.
     /// </summary>
-    public static Expression TryVisit(Expression expression)
-    {
-        try
-        {
+    public static Expression TryVisit(Expression expression) {
+        try {
             return DoVisit(expression);
         }
-        catch (Exception)
-        {
+        catch (Exception) {
             return expression;
         }
     }
