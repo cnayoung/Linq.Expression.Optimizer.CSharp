@@ -16,7 +16,6 @@ namespace Tests
         public static List<T> ExecuteExpression<T>(Expression e) =>
             ((IEnumerable)Expression.Lambda(e).Compile().DynamicInvoke()).Cast<T>().ToList();
 
-
         public static (IList<a>, IList<a>) TestExpression<b, a>(IQueryable<b> qry) {
 
             var optimized = ExpressionOptimizer.Visit(qry.Expression);
@@ -53,8 +52,6 @@ namespace Tests
         /// out the redundant condition expression (true ? x | x). We have to construct the expression
         /// directly to test the ability of the expression optimizer code to handle this redundancy.
         /// </summary>
-        /// <param name="arr"></param>
-        /// <returns></returns>
         public static IQueryable<int> Qry4(IList<int> arr)
         {
             var paramExpr = Expression.Parameter(typeof(int), "x");

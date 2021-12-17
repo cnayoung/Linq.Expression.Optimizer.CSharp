@@ -11,9 +11,6 @@ public static class ExpressionOptimizer
     ///  But Constant value can be also another complex object like IQueryable.
     ///  We don't want to evaluate those!
     /// </summary>
-    /// <param name="parentExpression"></param>
-    /// <param name="expression"></param>
-    /// <returns></returns>
     public static IComparable? ConstantBasicType(Expression parentExpression, Expression expression)
     {
         IComparable? GetCorrectType(object? x) =>
@@ -43,8 +40,6 @@ public static class ExpressionOptimizer
     ///   7 > 8      -->   False
     /// "G" = "G"    -->   True
     /// </summary>
-    /// <param name="expression"></param>
-    /// <returns></returns>
     public static Expression ReplaceConstantComparison(Expression expression)
     {
         IComparable? Constant(Expression e) =>
@@ -85,8 +80,6 @@ public static class ExpressionOptimizer
     /// Purpose of this is to replace non-used anonymous types:
     /// new AnonymousObject(Item1 = x, Item2 = "").Item1    -->   x
     /// </summary>
-    /// <param name="expression"></param>
-    /// <returns></returns>
     public static Expression RemoveAnonymousType(Expression expression)
     {
         int? idxMember;
@@ -153,8 +146,6 @@ public static class ExpressionOptimizer
     /// <summary>
     /// if false then x else y -> y
     /// </summary>
-    /// <param name="expression"></param>
-    /// <returns></returns>
     public static Expression CutNotUsedCondition(Expression expression) => (expression.NodeType, expression) switch
     {
         (ExpressionType.Conditional, ConditionalExpression ce) => ce.Test switch
@@ -170,8 +161,6 @@ public static class ExpressionOptimizer
     /// <summary>
     /// not(false) -> true 
     /// </summary>
-    /// <param name="expression"></param>
-    /// <returns></returns>
     public static Expression NotFalseIsTrue(Expression expression) => (expression.NodeType, expression) switch
     {
         (ExpressionType.Not, UnaryExpression ue) => ue.Operand switch
@@ -246,8 +235,6 @@ public static class ExpressionOptimizer
     /// <summary>
     /// Not in use, would cause looping...
     /// </summary>
-    /// <param name="expression"></param>
-    /// <returns></returns>
     public static Expression Associate(Expression expression) => expression switch
     {
         _ when Or(expression) is ({ } l1, { } r1) && Or(l1) is ({ } l, { } r) => Expression.OrElse(
@@ -264,8 +251,6 @@ public static class ExpressionOptimizer
     /// <summary>
     /// We commute to AndAlso and OrElse, if not already in that format
     /// </summary>
-    /// <param name="expression"></param>
-    /// <returns></returns>
     public static Expression Commute(Expression expression) => expression switch
     {
         var comex when Or(expression) is ({ } left, { } right) && comex.NodeType != ExpressionType.OrElse =>
@@ -278,8 +263,6 @@ public static class ExpressionOptimizer
     /// <summary>
     /// Not in use, would cause looping...
     /// </summary>
-    /// <param name="expression"></param>
-    /// <returns></returns>
     public static Expression Distribute(Expression expression) => expression switch
     {
         _ when And(expression) is ({ } p, { } r) && Or(r) is ({ } p1, { } p2) => Expression.OrElse(
@@ -364,8 +347,6 @@ public static class ExpressionOptimizer
     /// Balance tree that is too much weighted to other side.
     /// The real advantage is not-so-nested-stack 
     /// </summary>
-    /// <param name="expression"></param>
-    /// <returns></returns>
     public static Expression Balancetree(Expression expression) => expression switch
     {
         _ when Or(expression) is ({ } p1, { } r1) && Or(r1) is ({ } p2, { } r2) && Or(r2) is ({ } p3, { } r3) &&
@@ -396,8 +377,6 @@ public static class ExpressionOptimizer
     /// <summary>
     /// Evaluating constants to not mess with our expressions:
     /// </summary>
-    /// <param name="expression"></param>
-    /// <returns></returns>
     public static Expression EvaluateConstants(Expression expression) => (expression.NodeType, expression) switch
     {
         (ExpressionType.MemberAccess, MemberExpression { Expression: { } } me) =>
@@ -425,8 +404,6 @@ public static class ExpressionOptimizer
     ///  9  *  3     -->    27
     /// "G" + "G"    -->   "GG" 
     /// </summary>
-    /// <param name="expression"></param>
-    /// <returns></returns>
     public static Expression EvaluateBasicConstantMath(Expression expression) => expression switch
     {
         BinaryExpression ce => !ce.Left.Type.Equals(ce.Right.Type)
@@ -552,6 +529,9 @@ public static class ExpressionOptimizer
         ExpressionOptimizer.Balancetree
     };
 
+    /// <summary>
+    /// Does reductions just for a current node.
+    /// </summary>
     public static Expression? DoReduction(Expression? exp)
     {
         Expression opt;
@@ -625,20 +605,10 @@ public static class ExpressionOptimizer
         };
     }
 
-    //////internal static E DebugInfoExpression<E>(E ex, Func<Expression, Expression> f) where E: Expression
-    //////{
-    //////    System.Diagnostics.Trace.WriteLine(f.Method.Name);
-    //////    System.Diagnostics.Trace.WriteLine(ex.ToString());
-
-    //////    return ex;
-    //////}
-
     /// <summary>
     /// Look also inside a LINQ-wrapper
     /// https://referencesource.microsoft.com/#System.Core/System/Linq/Enumerable.cs,8bf16962931637d3,references
     /// </summary>
-    /// <param name="ce"></param>
-    /// <returns></returns>
     internal static ConstantExpression WhereSelectEnumerableIteratorVisitor(ConstantExpression ce)
     {
         PropertyInfo? enuProp;
@@ -672,16 +642,12 @@ public static class ExpressionOptimizer
     /// <summary>
     /// Expression tree visitor: go through the whole expression tree.
     /// </summary>
-    /// <param name="expression"></param>
-    /// <returns></returns>
     public static Expression Visit(Expression expression) => DoVisit(expression);
 
     /// <summary>
     /// Expression tree visitor: go through the whole expression tree.
     /// Catches the exceptions.
     /// </summary>
-    /// <param name="expression"></param>
-    /// <returns></returns>
     public static Expression TryVisit(Expression expression)
     {
         try

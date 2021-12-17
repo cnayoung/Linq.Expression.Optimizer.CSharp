@@ -25,7 +25,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Linq.Expression.Optimizer.CSharp\Linq.Expression.Optimizer.CSharp.csproj" />
+    <ProjectReference Include="..\src\Linq.Expression.Optimizer.CSharp.csproj" />
   </ItemGroup>
 
 </Project>

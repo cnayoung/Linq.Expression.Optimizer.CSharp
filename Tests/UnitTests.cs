@@ -150,9 +150,8 @@ public class UnitTests
     }
 
     /// <summary>
-    /// This test is broken in both the F# and C# versions.
+    /// This test is broken in the F# version (December 2021).
     /// </summary>
-    /// <param name="xs"></param>
     [Property]
     public void ExpressionOptimizerGeneratesSmallerExpression11(int[] xs)
     {
