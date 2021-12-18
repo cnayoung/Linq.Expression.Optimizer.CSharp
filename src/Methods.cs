@@ -25,7 +25,7 @@ public static class Methods {
             (ExpressionType.Constant, ConstantExpression ce) when
                 parentExpr.Type.GetTypeInfo().IsPrimitive =>
                 (ce.Value) is null
-                    ? null
+                    ? default
                     : (x = GetCorrectType(ce.Value)) switch {
                         null => GetCorrectType(Expression.Lambda(parentExpr).Compile().DynamicInvoke()),
                         _ => x
