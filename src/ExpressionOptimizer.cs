@@ -5,9 +5,11 @@
 using System.Linq.Expressions;
 using System.Reflection;
 
-namespace ExpressionOptimizer;
+namespace Linq.Expression.Optimizer.CSharp;
 
-public static class Methods {
+using Expression = System.Linq.Expressions.Expression;
+
+public static class ExpressionOptimizer {
     /// <summary>
     ///  We want to eliminate enum-types and constants like 1 or "a".
     ///  But Constant value can be also another complex object like IQueryable.
@@ -441,24 +443,24 @@ public static class Methods {
     /// </summary>
     public static IList<Func<Expression, Expression>> ReductionMethods = new List<Func<Expression, Expression>>
     {
-        Methods.EvaluateConstants,
-        Methods.EvaluateBasicConstantMath,
-        Methods.ReplaceConstantComparison,
-        Methods.RemoveAnonymousType,
-        Methods.CutNotUsedCondition,
-        Methods.NotFalseIsTrue,
-        // LinqExpressionOptimiserMethods.Associate,
-        Methods.Commute,
-        // LinqExpressionOptimiserMethods.Distribute,
-        Methods.Gather,
-        Methods.Identity,
-        Methods.Annihilate,
-        Methods.Absorb,
-        Methods.Idempotence,
-        Methods.Complement,
-        Methods.DoubleNegation,
-        Methods.DeMorgan,
-        Methods.Balancetree
+        ExpressionOptimizer.EvaluateConstants,
+        ExpressionOptimizer.EvaluateBasicConstantMath,
+        ExpressionOptimizer.ReplaceConstantComparison,
+        ExpressionOptimizer.RemoveAnonymousType,
+        ExpressionOptimizer.CutNotUsedCondition,
+        ExpressionOptimizer.NotFalseIsTrue,
+        // ExpressionOptimizer.Associate,
+        ExpressionOptimizer.Commute,
+        // ExpressionOptimizer.Distribute,
+        ExpressionOptimizer.Gather,
+        ExpressionOptimizer.Identity,
+        ExpressionOptimizer.Annihilate,
+        ExpressionOptimizer.Absorb,
+        ExpressionOptimizer.Idempotence,
+        ExpressionOptimizer.Complement,
+        ExpressionOptimizer.DoubleNegation,
+        ExpressionOptimizer.DeMorgan,
+        ExpressionOptimizer.Balancetree
     };
 
     /// <summary>

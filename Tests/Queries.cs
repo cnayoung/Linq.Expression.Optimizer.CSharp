@@ -3,8 +3,8 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
-using ExpressionOptimizer;
 using FsUnit;
+using Linq.Expression.Optimizer.CSharp;
 
 namespace Tests {
     internal record Itm(int x);
@@ -16,7 +16,7 @@ namespace Tests {
 
         public static (IList<a>, IList<a>) TestExpression<b, a>(IQueryable<b> qry) {
 
-            var optimized = Methods.Visit(qry.Expression);
+            var optimized = ExpressionOptimizer.Visit(qry.Expression);
             var expected = ExecuteExpression<a>(qry.Expression);
             return optimized.GetHashCode() != qry.Expression.GetHashCode()
                 ? (expected, ExecuteExpression<a>(optimized))
@@ -180,7 +180,7 @@ namespace Tests {
         }
         public static void TestLt<a>(int[] xs, Func<IList<int>, IQueryable<a>> qry) {
             var expr = qry(xs.ToList()).Expression;
-            var optimized = Methods.Visit(expr);
+            var optimized = ExpressionOptimizer.Visit(expr);
             var o = optimized.ToString();
             var o2 = o.ToString();
             Assert.Less(optimized.ToString().Length, expr.ToString().Length);
@@ -188,7 +188,7 @@ namespace Tests {
 
         public static void TestLteq<a>(int[] xs, Func<IList<int>, IQueryable<a>> qry) {
             var expr = qry(xs.ToList()).Expression;
-            var optimized = Methods.Visit(expr);
+            var optimized = ExpressionOptimizer.Visit(expr);
             Assert.LessOrEqual(optimized.ToString().Length, expr.ToString().Length);
         }
     }
