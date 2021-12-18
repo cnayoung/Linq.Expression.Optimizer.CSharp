@@ -52,18 +52,16 @@ public static class Methods {
 
         return e switch {
             BinaryExpression ce =>
-                (l = Constant(ce.Left)) != default
-                    ? (r = Constant(ce.Right)) != default
-                        ? e.NodeType switch {
-                            ExpressionType.Equal => CreateBool(l.CompareTo(r) == 0),
-                            ExpressionType.LessThan => CreateBool(l.CompareTo(r) < 0),
-                            ExpressionType.LessThanOrEqual => CreateBool(l.CompareTo(r) <= 0),
-                            ExpressionType.GreaterThan => CreateBool(l.CompareTo(r) > 0),
-                            ExpressionType.GreaterThanOrEqual => CreateBool(l.CompareTo(r) >= 0),
-                            ExpressionType.NotEqual => CreateBool(l.CompareTo(r) != 0),
-                            _ => e
-                        }
-                        : e
+                (l = Constant(ce.Left)) is { } && (r = Constant(ce.Right)) is { }
+                    ? e.NodeType switch {
+                        ExpressionType.Equal => CreateBool(l.CompareTo(r) == 0),
+                        ExpressionType.LessThan => CreateBool(l.CompareTo(r) < 0),
+                        ExpressionType.LessThanOrEqual => CreateBool(l.CompareTo(r) <= 0),
+                        ExpressionType.GreaterThan => CreateBool(l.CompareTo(r) > 0),
+                        ExpressionType.GreaterThanOrEqual => CreateBool(l.CompareTo(r) >= 0),
+                        ExpressionType.NotEqual => CreateBool(l.CompareTo(r) != 0),
+                        _ => e
+                    }
                     : e,
             _ => e
         };
