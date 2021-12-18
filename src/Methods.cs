@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 // This is just a light-weight expression optimizer.
 // It won't do any heavy stuff...
 
@@ -42,10 +42,8 @@ public static class Methods {
     public static Expression ReplaceConstantComparison(Expression expression) {
         IComparable? Constant(Expression e) =>
             (e.NodeType, e) switch {
-                (ExpressionType.Constant, ConstantExpression { Value: IComparable } constantExpression) =>
-                    (IComparable)constantExpression.Value,
-                (ExpressionType.Convert, UnaryExpression parentExpr) => ConstantBasicType(parentExpr,
-                    parentExpr.Operand),
+                (ExpressionType.Constant, ConstantExpression { Value: IComparable } constantExpression) => (IComparable)constantExpression.Value,
+                (ExpressionType.Convert, UnaryExpression parentExpr) => ConstantBasicType(parentExpr, parentExpr.Operand),
                 _ => default
             };
 
@@ -100,8 +98,7 @@ public static class Methods {
                 (me.Expression?.NodeType, me.Expression, me.Member) switch {
                     (ExpressionType.New, NewExpression { Arguments: { } } ne, PropertyInfo p) =>
                         ne.Arguments.Select(arg => arg switch {
-                            MemberExpression { Member: { } } ame when ame.Member.Name == me.Member.Name &&
-                                                                      ame.Type == p.PropertyType =>
+                            MemberExpression { Member: { } } ame when ame.Member.Name == me.Member.Name && ame.Type == p.PropertyType =>
                                 (Expression)ame,
                             _ => default
                         }).FirstOrDefault() switch { { } x => x,
@@ -110,8 +107,8 @@ public static class Methods {
                                     _ when m.Name == me.Member.Name =>
                                             ne.Arguments.Count > (idxMember = ne.Members.IndexOf(m))
                                                 ? ne.Arguments[idxMember.Value] switch {
-                                                    ParameterExpression ape when ape.Type == p.PropertyType
-                                                        => (Expression)ape,
+                                                    ParameterExpression ape when ape.Type == p.PropertyType => 
+                                                        (Expression)ape,
                                                     _ => default
                                                 }
                                                 : default,
@@ -487,6 +484,7 @@ public static class Methods {
     // Too bad this was so simple and faster than what it would have taken to get to know that 700 rows of source code!
 
     internal static Expression DoVisit(Expression? expression) =>
+        //bottom up:
         expression is null
             ? null
             : DoReduction(VisitChilds(expression)) ?? null;
