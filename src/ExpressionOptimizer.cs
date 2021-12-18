@@ -75,7 +75,7 @@ public static class ExpressionOptimizer {
     /// </summary>
     public static Expression RemoveAnonymousType(Expression e) {
         int? idxMember;
-        return (e.NodeType, expression: e) switch {
+        return (e.NodeType, e) switch {
             // FSharp anonymous type:
             (ExpressionType.MemberAccess, MemberExpression me) when
                 me.Member.DeclaringType is { } dt &&
@@ -127,7 +127,7 @@ public static class ExpressionOptimizer {
     /// if false then x else y -> y
     /// </summary>
     public static Expression CutNotUsedCondition(Expression e) =>
-        (e.NodeType, expression: e) switch {
+        (e.NodeType, e) switch {
             (ExpressionType.Conditional, ConditionalExpression ce) =>
                 ce.Test switch { // For now, only direct booleans conditions are optimized to select query:
                     ConstantExpression c when c.Value?.Equals(true) ?? false => ce.IfTrue,
@@ -141,7 +141,7 @@ public static class ExpressionOptimizer {
     /// not(false) -> true 
     /// </summary>
     public static Expression NotFalseIsTrue(Expression e) =>
-        (e.NodeType, expression: e) switch {
+        (e.NodeType, e) switch {
             (ExpressionType.Not, UnaryExpression ue) =>
                 ue.Operand switch {
                     ConstantExpression c when c.Value?.Equals(false) ?? false => Expression.Constant(true, typeof(bool)),
@@ -159,19 +159,19 @@ public static class ExpressionOptimizer {
     // [associate; commute; distribute; gather; identity; annihilate; absorb; idempotence; complement; doubleNegation; deMorgan]
 
     internal static (object?, Type)? Value(Expression e) =>
-        (e.NodeType, expression: e) switch {
+        (e.NodeType, e) switch {
             (ExpressionType.Constant, ConstantExpression ce) => (ce.Value, ce.Type),
             _ => default
         };
 
     internal static (Expression, Expression, Expression)? IfThenElse(Expression e) =>
-        (e.NodeType, expression: e) switch {
+        (e.NodeType, e) switch {
             (ExpressionType.Conditional, ConditionalExpression ce) => (ce.Test, ce.IfTrue, ce.IfFalse),
             _ => default
         };
 
     internal static Expression? Not(Expression? e) =>
-        (e?.NodeType, expression: e) switch {
+        (e?.NodeType, e) switch {
             (ExpressionType.Not, UnaryExpression ue) => (ue.Operand),
             _ => default
         };
@@ -189,7 +189,7 @@ public static class ExpressionOptimizer {
         };
 
     internal static (Expression left, Expression right)? Or(Expression e) =>
-        (e.NodeType, expression: e) switch {
+        (e.NodeType, e) switch {
             (ExpressionType.OrElse, BinaryExpression be) => (be.Left, be.Right),
             _ => (IfThenElse(e)) switch {
                 ( { } left, _, { } right) => (left, right),
@@ -198,7 +198,7 @@ public static class ExpressionOptimizer {
         };
 
     internal static (Expression left, Expression right)? And(Expression e) =>
-        (e.NodeType, expression: e) switch {
+        (e.NodeType, e) switch {
             (ExpressionType.AndAlso, BinaryExpression be) => (be.Left, be.Right),
             _ => (IfThenElse(e)) switch {
                 ( { } left, { } right, _) => (left, right),
