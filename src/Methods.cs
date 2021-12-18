@@ -17,7 +17,7 @@ public static class Methods {
         IComparable? GetCorrectType(object? x) =>
             x is IComparable comparable && comparable.GetType() == parentExpr.Type
                 ? comparable
-                : null;
+                : default;
 
         IComparable? x;
 
@@ -81,8 +81,8 @@ public static class Methods {
                 (me.Member.Name.StartsWith("Item") && me.Member.Name.Length > 4
                         ? int.TryParse(me.Member.Name[4..], out var i)
                             ? i as int?
-                            : null
-                        : null, me.Expression?.NodeType, me.Expression, me.Member) switch {
+                            : default
+                        : default, me.Expression?.NodeType, me.Expression, me.Member) switch {
                             ( { } idx, ExpressionType.New, NewExpression ne, PropertyInfo p) =>
                                 ne.Arguments.Count > idx - 1 && ne.Arguments[idx - 1].Type.Equals(p.PropertyType)
                                     ? ne.Arguments[idx - 1] // We found it!
@@ -99,7 +99,8 @@ public static class Methods {
                             MemberExpression { Member: { } } ame when ame.Member.Name == me.Member.Name && ame.Type == p.PropertyType =>
                                 (Expression)ame,
                             _ => default
-                        }).FirstOrDefault() switch { { } x => x,
+                        }).FirstOrDefault() switch { 
+                            { } x => x,
                             _ when ne.Members is not null =>
                                 ne.Members.Select(m => m switch {
                                     _ when m.Name == me.Member.Name =>
@@ -111,9 +112,7 @@ public static class Methods {
                                                 }
                                                 : default,
                                     _ => default
-                                }).FirstOrDefault() switch { { } x => x,
-                                    _ => e
-                                },
+                                }).FirstOrDefault() switch { { } x => x, _ => e },
                             _ => e
                         },
                     _ => e
