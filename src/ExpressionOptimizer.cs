@@ -1,6 +1,6 @@
 ﻿#nullable enable
 // This is just a light-weight expression optimizer.
-// It won't do any heavy stuff...using System.Linq.Expressions;
+// It won't do any heavy stuff...
 
 using System.Linq.Expressions;
 using System.Reflection;
