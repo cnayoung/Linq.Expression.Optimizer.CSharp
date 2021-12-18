@@ -128,12 +128,13 @@ public static class ExpressionOptimizer {
     /// </summary>
     public static Expression CutNotUsedCondition(Expression e) =>
         (e.NodeType, expression: e) switch {
-            (ExpressionType.Conditional, ConditionalExpression ce) => ce.Test switch {
-                // For now, only direct booleans conditions are optimized to select query:
-                ConstantExpression c when c.Value?.Equals(true) ?? false => ce.IfTrue,
-                ConstantExpression c when c.Value?.Equals(false) ?? false => ce.IfFalse,
-                _ => e
-            },
+            (ExpressionType.Conditional, ConditionalExpression ce) =>
+                ce.Test switch {
+                    // For now, only direct booleans conditions are optimized to select query:
+                    ConstantExpression c when c.Value?.Equals(true) ?? false => ce.IfTrue,
+                    ConstantExpression c when c.Value?.Equals(false) ?? false => ce.IfFalse,
+                    _ => e
+                },
             _ => e
         };
 
@@ -142,11 +143,12 @@ public static class ExpressionOptimizer {
     /// </summary>
     public static Expression NotFalseIsTrue(Expression e) =>
         (e.NodeType, expression: e) switch {
-            (ExpressionType.Not, UnaryExpression ue) => ue.Operand switch {
-                ConstantExpression c when c.Value?.Equals(false) ?? false => Expression.Constant(true, typeof(bool)),
-                ConstantExpression c when c.Value?.Equals(true) ?? false => Expression.Constant(false, typeof(bool)),
-                _ => e
-            },
+            (ExpressionType.Not, UnaryExpression ue) =>
+                ue.Operand switch {
+                    ConstantExpression c when c.Value?.Equals(false) ?? false => Expression.Constant(true, typeof(bool)),
+                    ConstantExpression c when c.Value?.Equals(true) ?? false => Expression.Constant(false, typeof(bool)),
+                    _ => e
+                },
             _ => e
         };
 
@@ -175,15 +177,17 @@ public static class ExpressionOptimizer {
             _ => default
         };
 
-    internal static Expression? True(Expression e) => e switch {
-        _ when Value(e) is ( { } o, { } t) && t == typeof(bool) && (bool)o => e,
+    internal static Expression? True(Expression expr) => 
+        expr switch {
+        _ when Value(expr) is ( { } o, { } t) && t == typeof(bool) && (bool)o => expr,
         _ => default
     };
 
-    internal static Expression? False(Expression e) => e switch {
-        _ when Value(e) is ( { } o, { } t) && t == typeof(bool) && !(bool)o => e,
-        _ => default
-    };
+    internal static Expression? False(Expression expr) =>
+        expr switch {
+            _ when Value(expr) is ({ } o, { } t) && t == typeof(bool) && !(bool)o => expr,
+            _ => default
+        };
 
     internal static (Expression left, Expression right)? Or(Expression e) =>
         (e.NodeType, expression: e) switch {
