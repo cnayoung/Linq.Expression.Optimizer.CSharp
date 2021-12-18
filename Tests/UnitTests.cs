@@ -5,7 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using BenchmarkDotNet.Attributes;
-using Methods;
+using ExpressionOptimizer;
 
 namespace Tests;
 
@@ -215,7 +215,7 @@ public class UnitTests {
             };
 
             VisitAndExecute = expression =>
-                Queries.ExecuteExpression<object>(ExpressionOptimizer.Visit(expression));
+                Queries.ExecuteExpression<object>(Methods.Visit(expression));
         }
 
         [GlobalSetup]
