@@ -322,7 +322,8 @@ public static class Methods {
     /// </summary>
     public static Expression EvaluateConstants(Expression e) => (e.NodeType, e) switch {
         (ExpressionType.MemberAccess, MemberExpression { Expression: { } } me) =>
-            ConstantBasicType(me, me.Expression) switch { { } x => Expression.Constant(x, me.Type),
+            ConstantBasicType(me, me.Expression) switch { 
+                { } x => Expression.Constant(x, me.Type),
                 _ => e
             },
         (ExpressionType.MemberAccess, MemberExpression { Expression: null } me) when
@@ -576,7 +577,7 @@ public static class Methods {
         try {
             return DoVisit(exp);
         }
-        catch (Exception) {
+        catch {
             return exp;
         }
     }
