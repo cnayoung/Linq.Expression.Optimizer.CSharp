@@ -24,12 +24,11 @@ I’m not familiar enough with the thinking behind F#’s query expressions to c
   
 In the C# code, the benchmark tests get the full query expressions for all the queries which they then execute.  When you run the benchmark tests for the C# code, you will find they take roughly twice as long. This is because most of the work is in executing the Linq expressions.  The C# tests do twice the amount of work as the F# tests.  If you eliminate the problem queries, or if you amend the F# code to replace the SelectEnumerableIterator expressions with the full query expressions, the benchmark figures are nearly identical for the ‘visit and execute’ test, as you might expect.
 
-BenchmarkDotNet\=v0\.13\.1\, OS\=Windows 10\.0\.22000
-
-Intel Core i7\-9750H CPU 2\.60GHz\, 1 CPU\, 12 logical and 6 physical cores
-\.NET SDK\=6.0.100
-  \[Host\]     \: \.NET 6\.0\.0 \(6\.0\.21\.52210\)\, X64 RyuJIT DEBUG
-  DefaultJob \: \.NET 6\.0\.0 \(6\.0\.21\.52210\)\, X64 RyuJIT
+BenchmarkDotNet\=v0\.13\.1\, OS\=Windows 10\.0\.22000  
+Intel Core i7\-9750H CPU 2\.60GHz\, 1 CPU\, 12 logical and 6 physical cores  
+\.NET SDK\=6.0.100  
+  \[Host\]     \: \.NET 6\.0\.0 \(6\.0\.21\.52210\)\, X64 RyuJIT DEBUG  
+  DefaultJob \: \.NET 6\.0\.0 \(6\.0\.21\.52210\)\, X64 RyuJIT  
     
     
 F#
