@@ -44,8 +44,7 @@ public static class ExpressionOptimizer {
         public static Expression ReplaceConstantComparison(Expression e) {
             IComparable? Constant(Expression exp) =>
                 (exp.NodeType, exp) switch {
-                    (ExpressionType.Constant, ConstantExpression { Value: IComparable } constantExpression) =>
-                        (IComparable)constantExpression.Value,
+                    (ExpressionType.Constant, ConstantExpression { Value: IComparable } constantExpression) => (IComparable)constantExpression.Value,
                     (ExpressionType.Convert, UnaryExpression parentExpr) => ConstantBasicType(parentExpr,
                         parentExpr.Operand),
                     _ => default
@@ -100,8 +99,7 @@ public static class ExpressionOptimizer {
                     (me.Expression?.NodeType, me.Expression, me.Member) switch {
                         (ExpressionType.New, NewExpression { Arguments: { } } ne, PropertyInfo p) =>
                             ne.Arguments.Select(arg => arg switch {
-                                MemberExpression { Member: { } } ame when ame.Member.Name == me.Member.Name &&
-                                                                          ame.Type == p.PropertyType =>
+                                MemberExpression { Member: { } } ame when ame.Member.Name == me.Member.Name && ame.Type == p.PropertyType =>
                                     (Expression)ame,
                                 _ => default
                             }).FirstOrDefault() switch {
@@ -148,10 +146,8 @@ public static class ExpressionOptimizer {
             (e.NodeType, e) switch {
                 (ExpressionType.Not, UnaryExpression ue) =>
                     ue.Operand switch {
-                        ConstantExpression c when c.Value?.Equals(false) ?? false => Expression.Constant(true,
-                            typeof(bool)),
-                        ConstantExpression c when c.Value?.Equals(true) ?? false => Expression.Constant(false,
-                            typeof(bool)),
+                        ConstantExpression c when c.Value?.Equals(false) ?? false => Expression.Constant(true, typeof(bool)),
+                        ConstantExpression c when c.Value?.Equals(true) ?? false => Expression.Constant(false, typeof(bool)),
                         _ => e
                     },
                 _ => e
@@ -217,14 +213,10 @@ public static class ExpressionOptimizer {
         /// </summary>
         public static Expression Associate(Expression e) =>
             e switch {
-                _ when Or(e) is ({ } l1, { } r1) && Or(l1) is ({ } l, { } r) => Expression.OrElse(
-                    Expression.OrElse(l, r), r1),
-                _ when Or(e) is ({ } l, { } r1) && Or(r1) is ({ } l1, { } r) => Expression.OrElse(l,
-                    Expression.OrElse(l1, r)),
-                _ when And(e) is ({ } l1, { } r1) && And(l1) is ({ } l, { } r) => Expression.AndAlso(
-                    Expression.AndAlso(l, r), r1),
-                _ when And(e) is ({ } l, { } r1) && And(r1) is ({ } l1, { } r) => Expression.AndAlso(l,
-                    Expression.AndAlso(l1, r)),
+                _ when Or(e) is ({ } l1, { } r1) && Or(l1) is ({ } l, { } r) => Expression.OrElse(Expression.OrElse(l, r), r1),
+                _ when Or(e) is ({ } l, { } r1) && Or(r1) is ({ } l1, { } r) => Expression.OrElse(l, Expression.OrElse(l1, r)),
+                _ when And(e) is ({ } l1, { } r1) && And(l1) is ({ } l, { } r) => Expression.AndAlso(Expression.AndAlso(l, r), r1),
+                _ when And(e) is ({ } l, { } r1) && And(r1) is ({ } l1, { } r) => Expression.AndAlso(l, Expression.AndAlso(l1, r)),
                 var noHit => noHit
             };
 
@@ -233,10 +225,8 @@ public static class ExpressionOptimizer {
         /// </summary>
         public static Expression Commute(Expression e) =>
             e switch {
-                var comex when Or(e) is ({ } left, { } right) && comex.NodeType != ExpressionType.OrElse => Expression
-                    .OrElse(right, left),
-                var comex when And(e) is ({ } left, { } right) && comex.NodeType != ExpressionType.AndAlso => Expression
-                    .AndAlso(right, left),
+                var comex when Or(e) is ({ } left, { } right) && comex.NodeType != ExpressionType.OrElse => Expression.OrElse(right, left),
+                var comex when And(e) is ({ } left, { } right) && comex.NodeType != ExpressionType.AndAlso => Expression.AndAlso(right, left),
                 var noHit => noHit
             };
 
@@ -245,19 +235,15 @@ public static class ExpressionOptimizer {
         /// </summary>
         public static Expression Distribute(Expression e) =>
             e switch {
-                _ when And(e) is ({ } p, { } r) && Or(r) is ({ } p1, { } p2) => Expression.OrElse(
-                    Expression.AndAlso(p, p1), Expression.AndAlso(p, p2)),
-                _ when Or(e) is ({ } p, { } r) && And(r) is ({ } p1, { } p2) => Expression.AndAlso(
-                    Expression.OrElse(p, p1), Expression.OrElse(p, p2)),
+                _ when And(e) is ({ } p, { } r) && Or(r) is ({ } p1, { } p2) => Expression.OrElse(Expression.AndAlso(p, p1), Expression.AndAlso(p, p2)),
+                _ when Or(e) is ({ } p, { } r) && And(r) is ({ } p1, { } p2) => Expression.AndAlso(Expression.OrElse(p, p1), Expression.OrElse(p, p2)),
                 var noHit => noHit
             };
 
         public static Expression Gather(Expression e) =>
             e switch {
-                _ when And(e) is ({ } l, { } r) && Or(l) is ({ } p, { } p1) && Or(r) is ({ } p2, { } p3) && p.Equals(p2)
-                    => Expression.OrElse(p, Expression.AndAlso(p1, p3)),
-                _ when Or(e) is ({ } l, { } r) && And(l) is ({ } p, { } p1) && And(r) is ({ } p2, { } p3) &&
-                       p.Equals(p2) => Expression.AndAlso(p, Expression.OrElse(p1, p3)),
+                _ when And(e) is ({ } l, { } r) && Or(l) is ({ } p, { } p1) && Or(r) is ({ } p2, { } p3) && p.Equals(p2) => Expression.OrElse(p, Expression.AndAlso(p1, p3)),
+                _ when Or(e) is ({ } l, { } r) && And(l) is ({ } p, { } p1) && And(r) is ({ } p2, { } p3) && p.Equals(p2) => Expression.AndAlso(p, Expression.OrElse(p1, p3)),
                 var noHit => noHit
             };
 
@@ -301,10 +287,8 @@ public static class ExpressionOptimizer {
 
         public static Expression Complement(Expression e) =>
             e switch {
-                _ when And(e) is ({ } p, { } p1) && Not(p1)?.Equals(p) is { } => Expression.Constant(false,
-                    typeof(bool)),
-                _ when And(e) is ({ } p, { } p1) && Not(p)?.Equals(p1) is { } => Expression.Constant(false,
-                    typeof(bool)),
+                _ when And(e) is ({ } p, { } p1) && Not(p1)?.Equals(p) is { } => Expression.Constant(false, typeof(bool)),
+                _ when And(e) is ({ } p, { } p1) && Not(p)?.Equals(p1) is { } => Expression.Constant(false, typeof(bool)),
                 _ when Or(e) is ({ } p, { } p1) && Not(p1)?.Equals(p) is { } => Expression.Constant(true, typeof(bool)),
                 _ when Or(e) is ({ } p, { } p1) && Not(p)?.Equals(p1) is { } => Expression.Constant(true, typeof(bool)),
                 var noHit => noHit
@@ -318,10 +302,8 @@ public static class ExpressionOptimizer {
 
         public static Expression DeMorgan(Expression e) =>
             e switch {
-                _ when Or(e) is ({ } l, { } r) && Not(l) is { } p && Not(r) is { } p1 => Expression.Not(
-                    Expression.AndAlso(p, p1)),
-                _ when And(e) is ({ } l, { } r) && Not(l) is { } p && Not(r) is { } p1 => Expression.Not(
-                    Expression.OrElse(p, p1)),
+                _ when Or(e) is ({ } l, { } r) && Not(l) is { } p && Not(r) is { } p1 => Expression.Not(Expression.AndAlso(p, p1)),
+                _ when And(e) is ({ } l, { } r) && Not(l) is { } p && Not(r) is { } p1 => Expression.Not(Expression.OrElse(p, p1)),
                 var noHit => noHit
             };
 
@@ -396,140 +378,79 @@ public static class ExpressionOptimizer {
                             // C# doesn't support macros so this code is a bit copy-and-paste, but it should be trivial.
                             e.NodeType switch {
                                 ExpressionType.Add => (le.Value, ri.Value) switch {
-                                    (string lstr, string rstr) when le.Type == typeof(string) => Expression.Constant(
-                                        lstr + rstr, le.Type),
-                                    (decimal lstr, decimal rstr) when le.Type == typeof(decimal) => Expression.Constant(
-                                        lstr + rstr, le.Type),
-                                    (float lstr, float rstr) when le.Type == typeof(float) => Expression.Constant(
-                                        lstr + rstr, le.Type),
-                                    (double lstr, double rstr) when le.Type == typeof(double) => Expression.Constant(
-                                        lstr + rstr, le.Type),
-                                    (float lstr, float rstr) when le.Type == typeof(float) => Expression.Constant(
-                                        lstr + rstr, le.Type),
-                                    (int lstr, int rstr) when le.Type == typeof(int) => Expression.Constant(lstr + rstr,
-                                        le.Type),
-                                    (long lstr, long rstr) when le.Type == typeof(long) => Expression.Constant(
-                                        lstr + rstr, le.Type),
-                                    (uint lstr, uint rstr) when le.Type == typeof(uint) => Expression.Constant(
-                                        lstr + rstr, le.Type),
-                                    (ulong lstr, ulong rstr) when le.Type == typeof(ulong) => Expression.Constant(
-                                        lstr + rstr, le.Type),
-                                    (short lstr, short rstr) when le.Type == typeof(short) => Expression.Constant(
-                                        lstr + rstr, le.Type),
-                                    (ushort lstr, ushort rstr) when le.Type == typeof(ushort) => Expression.Constant(
-                                        lstr + rstr, le.Type),
-                                    (sbyte lstr, sbyte rstr) when le.Type == typeof(sbyte) => Expression.Constant(
-                                        lstr + rstr, le.Type),
-                                    (byte lstr, byte rstr) when le.Type == typeof(byte) => Expression.Constant(
-                                        lstr + rstr, le.Type),
+                                    (string lstr, string rstr) when le.Type == typeof(string) => Expression.Constant(lstr + rstr, le.Type),
+                                    (decimal lstr, decimal rstr) when le.Type == typeof(decimal) => Expression.Constant(lstr + rstr, le.Type),
+                                    (float lstr, float rstr) when le.Type == typeof(float) => Expression.Constant(lstr + rstr, le.Type),
+                                    (double lstr, double rstr) when le.Type == typeof(double) => Expression.Constant(lstr + rstr, le.Type),
+                                    (float lstr, float rstr) when le.Type == typeof(float) => Expression.Constant(lstr + rstr, le.Type),
+                                    (int lstr, int rstr) when le.Type == typeof(int) => Expression.Constant(lstr + rstr, le.Type),
+                                    (long lstr, long rstr) when le.Type == typeof(long) => Expression.Constant(lstr + rstr, le.Type),
+                                    (uint lstr, uint rstr) when le.Type == typeof(uint) => Expression.Constant(lstr + rstr, le.Type),
+                                    (ulong lstr, ulong rstr) when le.Type == typeof(ulong) => Expression.Constant(lstr + rstr, le.Type),
+                                    (short lstr, short rstr) when le.Type == typeof(short) => Expression.Constant(lstr + rstr, le.Type),
+                                    (ushort lstr, ushort rstr) when le.Type == typeof(ushort) => Expression.Constant(lstr + rstr, le.Type),
+                                    (sbyte lstr, sbyte rstr) when le.Type == typeof(sbyte) => Expression.Constant(lstr + rstr, le.Type),
+                                    (byte lstr, byte rstr) when le.Type == typeof(byte) => Expression.Constant(lstr + rstr, le.Type),
                                     _ => e
                                 },
                                 ExpressionType.Subtract => (le.Value, ri.Value) switch {
-                                    (decimal lstr, decimal rstr) when le.Type == typeof(decimal) => Expression.Constant(
-                                        lstr - rstr, le.Type),
-                                    (float lstr, float rstr) when le.Type == typeof(float) => Expression.Constant(
-                                        lstr - rstr, le.Type),
-                                    (double lstr, double rstr) when le.Type == typeof(double) => Expression.Constant(
-                                        lstr - rstr, le.Type),
-                                    (float lstr, float rstr) when le.Type == typeof(float) => Expression.Constant(
-                                        lstr - rstr, le.Type),
-                                    (int lstr, int rstr) when le.Type == typeof(int) => Expression.Constant(lstr - rstr,
-                                        le.Type),
-                                    (long lstr, long rstr) when le.Type == typeof(long) => Expression.Constant(
-                                        lstr - rstr, le.Type),
-                                    (uint lstr, uint rstr) when le.Type == typeof(uint) => Expression.Constant(
-                                        lstr - rstr, le.Type),
-                                    (ulong lstr, ulong rstr) when le.Type == typeof(ulong) => Expression.Constant(
-                                        lstr - rstr, le.Type),
-                                    (short lstr, short rstr) when le.Type == typeof(short) => Expression.Constant(
-                                        lstr - rstr, le.Type),
-                                    (ushort lstr, ushort rstr) when le.Type == typeof(ushort) => Expression.Constant(
-                                        lstr - rstr, le.Type),
-                                    (sbyte lstr, sbyte rstr) when le.Type == typeof(sbyte) => Expression.Constant(
-                                        lstr - rstr, le.Type),
-                                    (byte lstr, byte rstr) when le.Type == typeof(byte) => Expression.Constant(
-                                        lstr - rstr, le.Type),
+                                    (decimal lstr, decimal rstr) when le.Type == typeof(decimal) => Expression.Constant(lstr - rstr, le.Type),
+                                    (float lstr, float rstr) when le.Type == typeof(float) => Expression.Constant(lstr - rstr, le.Type),
+                                    (double lstr, double rstr) when le.Type == typeof(double) => Expression.Constant(lstr - rstr, le.Type),
+                                    (float lstr, float rstr) when le.Type == typeof(float) => Expression.Constant(lstr - rstr, le.Type),
+                                    (int lstr, int rstr) when le.Type == typeof(int) => Expression.Constant(lstr - rstr, le.Type),
+                                    (long lstr, long rstr) when le.Type == typeof(long) => Expression.Constant(lstr - rstr, le.Type),
+                                    (uint lstr, uint rstr) when le.Type == typeof(uint) => Expression.Constant(lstr - rstr, le.Type),
+                                    (ulong lstr, ulong rstr) when le.Type == typeof(ulong) => Expression.Constant(lstr - rstr, le.Type),
+                                    (short lstr, short rstr) when le.Type == typeof(short) => Expression.Constant(lstr - rstr, le.Type),
+                                    (ushort lstr, ushort rstr) when le.Type == typeof(ushort) => Expression.Constant(lstr - rstr, le.Type),
+                                    (sbyte lstr, sbyte rstr) when le.Type == typeof(sbyte) => Expression.Constant(lstr - rstr, le.Type),
+                                    (byte lstr, byte rstr) when le.Type == typeof(byte) => Expression.Constant(lstr - rstr, le.Type),
                                     _ => e
                                 },
                                 ExpressionType.Multiply => (le.Value, ri.Value) switch {
-                                    (decimal lstr, decimal rstr) when le.Type == typeof(decimal) => Expression.Constant(
-                                        lstr * rstr, le.Type),
-                                    (float lstr, float rstr) when le.Type == typeof(float) => Expression.Constant(
-                                        lstr * rstr, le.Type),
-                                    (double lstr, double rstr) when le.Type == typeof(double) => Expression.Constant(
-                                        lstr * rstr, le.Type),
-                                    (float lstr, float rstr) when le.Type == typeof(float) => Expression.Constant(
-                                        lstr * rstr, le.Type),
-                                    (int lstr, int rstr) when le.Type == typeof(int) => Expression.Constant(lstr * rstr,
-                                        le.Type),
-                                    (long lstr, long rstr) when le.Type == typeof(long) => Expression.Constant(
-                                        lstr * rstr, le.Type),
-                                    (uint lstr, uint rstr) when le.Type == typeof(uint) => Expression.Constant(
-                                        lstr * rstr, le.Type),
-                                    (ulong lstr, ulong rstr) when le.Type == typeof(ulong) => Expression.Constant(
-                                        lstr * rstr, le.Type),
-                                    (short lstr, short rstr) when le.Type == typeof(short) => Expression.Constant(
-                                        lstr * rstr, le.Type),
-                                    (ushort lstr, ushort rstr) when le.Type == typeof(ushort) => Expression.Constant(
-                                        lstr * rstr, le.Type),
-                                    (sbyte lstr, sbyte rstr) when le.Type == typeof(sbyte) => Expression.Constant(
-                                        lstr * rstr, le.Type),
-                                    (byte lstr, byte rstr) when le.Type == typeof(byte) => Expression.Constant(
-                                        lstr * rstr, le.Type),
+                                    (decimal lstr, decimal rstr) when le.Type == typeof(decimal) => Expression.Constant(lstr * rstr, le.Type),
+                                    (float lstr, float rstr) when le.Type == typeof(float) => Expression.Constant(lstr * rstr, le.Type),
+                                    (double lstr, double rstr) when le.Type == typeof(double) => Expression.Constant(lstr * rstr, le.Type),
+                                    (float lstr, float rstr) when le.Type == typeof(float) => Expression.Constant(lstr * rstr, le.Type),
+                                    (int lstr, int rstr) when le.Type == typeof(int) => Expression.Constant(lstr * rstr, le.Type),
+                                    (long lstr, long rstr) when le.Type == typeof(long) => Expression.Constant(lstr * rstr, le.Type),
+                                    (uint lstr, uint rstr) when le.Type == typeof(uint) => Expression.Constant(lstr * rstr, le.Type),
+                                    (ulong lstr, ulong rstr) when le.Type == typeof(ulong) => Expression.Constant(lstr * rstr, le.Type),
+                                    (short lstr, short rstr) when le.Type == typeof(short) => Expression.Constant(lstr * rstr, le.Type),
+                                    (ushort lstr, ushort rstr) when le.Type == typeof(ushort) => Expression.Constant(lstr * rstr, le.Type),
+                                    (sbyte lstr, sbyte rstr) when le.Type == typeof(sbyte) => Expression.Constant(lstr * rstr, le.Type),
+                                    (byte lstr, byte rstr) when le.Type == typeof(byte) => Expression.Constant(lstr * rstr, le.Type),
                                     _ => e
                                 },
                                 ExpressionType.Divide => (le.Value, ri.Value) switch {
-                                    (decimal lstr, decimal rstr) when le.Type == typeof(decimal) => Expression.Constant(
-                                        lstr / rstr, le.Type),
-                                    (float lstr, float rstr) when le.Type == typeof(float) => Expression.Constant(
-                                        lstr / rstr, le.Type),
-                                    (double lstr, double rstr) when le.Type == typeof(double) => Expression.Constant(
-                                        lstr / rstr, le.Type),
-                                    (float lstr, float rstr) when le.Type == typeof(float) => Expression.Constant(
-                                        lstr / rstr, le.Type),
-                                    (int lstr, int rstr) when le.Type == typeof(int) => Expression.Constant(lstr / rstr,
-                                        le.Type),
-                                    (long lstr, long rstr) when le.Type == typeof(long) => Expression.Constant(
-                                        lstr / rstr, le.Type),
-                                    (uint lstr, uint rstr) when le.Type == typeof(uint) => Expression.Constant(
-                                        lstr / rstr, le.Type),
-                                    (ulong lstr, ulong rstr) when le.Type == typeof(ulong) => Expression.Constant(
-                                        lstr / rstr, le.Type),
-                                    (short lstr, short rstr) when le.Type == typeof(short) => Expression.Constant(
-                                        lstr / rstr, le.Type),
-                                    (ushort lstr, ushort rstr) when le.Type == typeof(ushort) => Expression.Constant(
-                                        lstr / rstr, le.Type),
-                                    (sbyte lstr, sbyte rstr) when le.Type == typeof(sbyte) => Expression.Constant(
-                                        lstr / rstr, le.Type),
-                                    (byte lstr, byte rstr) when le.Type == typeof(byte) => Expression.Constant(
-                                        lstr / rstr, le.Type),
+                                    (decimal lstr, decimal rstr) when le.Type == typeof(decimal) => Expression.Constant(lstr / rstr, le.Type),
+                                    (float lstr, float rstr) when le.Type == typeof(float) => Expression.Constant(lstr / rstr, le.Type),
+                                    (double lstr, double rstr) when le.Type == typeof(double) => Expression.Constant(lstr / rstr, le.Type),
+                                    (float lstr, float rstr) when le.Type == typeof(float) => Expression.Constant(lstr / rstr, le.Type),
+                                    (int lstr, int rstr) when le.Type == typeof(int) => Expression.Constant(lstr / rstr, le.Type),
+                                    (long lstr, long rstr) when le.Type == typeof(long) => Expression.Constant(lstr / rstr, le.Type),
+                                    (uint lstr, uint rstr) when le.Type == typeof(uint) => Expression.Constant(lstr / rstr, le.Type),
+                                    (ulong lstr, ulong rstr) when le.Type == typeof(ulong) => Expression.Constant(lstr / rstr, le.Type),
+                                    (short lstr, short rstr) when le.Type == typeof(short) => Expression.Constant(lstr / rstr, le.Type),
+                                    (ushort lstr, ushort rstr) when le.Type == typeof(ushort) => Expression.Constant(lstr / rstr, le.Type),
+                                    (sbyte lstr, sbyte rstr) when le.Type == typeof(sbyte) => Expression.Constant(lstr / rstr, le.Type),
+                                    (byte lstr, byte rstr) when le.Type == typeof(byte) => Expression.Constant(lstr / rstr, le.Type),
                                     _ => e
                                 },
                                 ExpressionType.Modulo => (le.Value, ri.Value) switch {
-                                    (decimal lstr, decimal rstr) when le.Type == typeof(decimal) => Expression.Constant(
-                                        lstr % rstr, le.Type),
-                                    (float lstr, float rstr) when le.Type == typeof(float) => Expression.Constant(
-                                        lstr % rstr, le.Type),
-                                    (double lstr, double rstr) when le.Type == typeof(double) => Expression.Constant(
-                                        lstr % rstr, le.Type),
-                                    (float lstr, float rstr) when le.Type == typeof(float) => Expression.Constant(
-                                        lstr % rstr, le.Type),
-                                    (int lstr, int rstr) when le.Type == typeof(int) => Expression.Constant(lstr % rstr,
-                                        le.Type),
-                                    (long lstr, long rstr) when le.Type == typeof(long) => Expression.Constant(
-                                        lstr % rstr, le.Type),
-                                    (uint lstr, uint rstr) when le.Type == typeof(uint) => Expression.Constant(
-                                        lstr % rstr, le.Type),
-                                    (ulong lstr, ulong rstr) when le.Type == typeof(ulong) => Expression.Constant(
-                                        lstr % rstr, le.Type),
-                                    (short lstr, short rstr) when le.Type == typeof(short) => Expression.Constant(
-                                        lstr % rstr, le.Type),
-                                    (ushort lstr, ushort rstr) when le.Type == typeof(ushort) => Expression.Constant(
-                                        lstr % rstr, le.Type),
-                                    (sbyte lstr, sbyte rstr) when le.Type == typeof(sbyte) => Expression.Constant(
-                                        lstr % rstr, le.Type),
-                                    (byte lstr, byte rstr) when le.Type == typeof(byte) => Expression.Constant(
-                                        lstr % rstr, le.Type),
+                                    (decimal lstr, decimal rstr) when le.Type == typeof(decimal) => Expression.Constant(lstr % rstr, le.Type),
+                                    (float lstr, float rstr) when le.Type == typeof(float) => Expression.Constant(lstr % rstr, le.Type),
+                                    (double lstr, double rstr) when le.Type == typeof(double) => Expression.Constant(lstr % rstr, le.Type),
+                                    (float lstr, float rstr) when le.Type == typeof(float) => Expression.Constant(lstr % rstr, le.Type),
+                                    (int lstr, int rstr) when le.Type == typeof(int) => Expression.Constant(lstr % rstr, le.Type),
+                                    (long lstr, long rstr) when le.Type == typeof(long) => Expression.Constant(lstr % rstr, le.Type),
+                                    (uint lstr, uint rstr) when le.Type == typeof(uint) => Expression.Constant(lstr % rstr, le.Type),
+                                    (ulong lstr, ulong rstr) when le.Type == typeof(ulong) => Expression.Constant(lstr % rstr, le.Type),
+                                    (short lstr, short rstr) when le.Type == typeof(short) => Expression.Constant(lstr % rstr, le.Type),
+                                    (ushort lstr, ushort rstr) when le.Type == typeof(ushort) => Expression.Constant(lstr % rstr, le.Type),
+                                    (sbyte lstr, sbyte rstr) when le.Type == typeof(sbyte) => Expression.Constant(lstr % rstr, le.Type),
+                                    (byte lstr, byte rstr) when le.Type == typeof(byte) => Expression.Constant(lstr % rstr, le.Type),
                                     _ => e
                                 },
                                 _ => e
@@ -620,8 +541,7 @@ public static class ExpressionOptimizer {
                 : Expression.MakeMemberAccess(v, e.Member),
             // The following condition is buggy, but retained for fidelity with the original F#. If the Select returns a null, ToArray will throw
             // an ArgumentNullException. This is basically the same behaviour as the F# code.
-            MethodCallExpression e => (obje = DoVisit(e.Object)) == e.Object &
-                                      (visitedMethodCalls = (args = e.Arguments.ToArray()).Select(a => (v = DoVisit(a)) is not null ? v : null).ToArray()).Equals(args)
+            MethodCallExpression e => (obje = DoVisit(e.Object)) == e.Object & (visitedMethodCalls = (args = e.Arguments.ToArray()).Select(a => (v = DoVisit(a)) is not null ? v : null).ToArray()).Equals(args)
                 ? e
                 : Expression.Call(obje, e.Method, visitedMethodCalls),
             LambdaExpression e => (b = DoVisit(e.Body)) == e.Body
@@ -669,16 +589,15 @@ public static class ExpressionOptimizer {
                 ? ce
                 : (enu = enuProp.GetValue(ce.Value, null)) is null
                     ? ce
-                    : (srcProp = enu.GetType().GetField("_source", BindingFlags.NonPublic | BindingFlags.Instance)) is
-                    null
+                    : (srcProp = enu.GetType().GetField("_source", BindingFlags.NonPublic | BindingFlags.Instance)) is null
                         ? ce
                         : (src = srcProp.GetValue(enu)) is null
                             ? ce
                             : (exprItm = src.GetType().GetField("_expression",
                                   BindingFlags.NonPublic | BindingFlags.Instance)) is not null &
-                              (expr = exprItm?.GetValue(src) ?? null) is not null
-                                //? ce
-                                ? !(opt = DoVisit((Expression?)expr)).Equals((Expression?)expr)
+                              (expr = exprItm?.GetValue(src)) is not null
+                                // The compiler can't see that expr can never be null here.
+                                ? !(opt = DoVisit((Expression)expr)).Equals((Expression)expr)
                                     ? DoSetValue()
                                     : ce
                                 : ce;
