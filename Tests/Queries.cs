@@ -164,10 +164,10 @@ namespace Tests {
 
         public static IQueryable<Tuple<int, int>> Qry16(IList<int> arr) {
             var asItms = arr.Select(ToImts);
-            var arr2 = asItms.AsQueryable();
+            var arr2 = asItms.AsQueryable().ToList();  // defeat lazy evaluation
             var onlyX = true;
 
-            return from i in arr2
+            return from i in arr2.AsQueryable()
                    join j in arr2
                        on i.x equals j.x
                    where ((!onlyX) || (onlyX && i.x == 3)) && arr2.Any(sl => false || sl.x == j.x && j.x != 1)

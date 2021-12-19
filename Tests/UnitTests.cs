@@ -224,21 +224,22 @@ public class UnitTests {
 
         /// <summary>
         /// <para>This test and the ExecuteOpt1 test below take about twice as long to execute as the original F# test on which it is based.
-        /// This is because, in F#, a query expression does not work in the way that might be expected.  An IQueryable represents the
-        /// Linq expression on which it eas created. In F#, a query expression may return an IQueryable representing a deferred execution
+        /// This is because, in F#, a query expression does not work in the way that might be expected.  An IQueryable&lt;Tgt; represents the
+        /// Linq expression on which it eas created. In F#, a query expression may return an IQueryable&lt;Tgt; representing a deferred execution
         /// iterator rather than the query expressed in the query expression. This affects half of the queries defined in the F# version of
         /// this code - specifically queries 2, 3, 5, 6, 8, 9, 12 nd 16. When the F# tests are run, these queries provide an expression
-        /// for the SelectEnumarableIterator that is used to defer query execution until the results are iterated. Hence, for these tests,
-        /// the F# code never gets to work on the underlying Link query. The overhead of these tests for the eight affected queries is
-        /// negligible, and hence the F# version of the tests only do approximately half the work that the C# tests do.</para>
-        /// 
-        /// <para>In the C# version, the code runs over expressions representing the entire query, as written, allowing these eight queries to be
-        /// optimised. You cannot perform a direct performance comparison of the C# and F# versions of this code using the tests as written.
-        /// If you remove the eight affected queries from the tests and run the benchmark, the performance is roughly equivalent.</para>
+        /// for the SelectEnumarableIterator that is used to defer query execution until the results are iterated. When the lazy evaluator is
+        /// executed, very little happens.  Execution does not result in iteration, and so the underlying query is never executed.  The
+        /// overhead is negligible.</para>
         ///
-        /// <para>It is possible that the eight affected tests were written without awareness of the underling behaviour of F# query expressions.
-        /// The F# tests really need to be rewritten to construct the full query expressions.</para>
-        /// </summary>
+        /// <para>In addition to this, there is a bug in the F# code. The ''WhereSelectEnumerableIterator visitor'' function incorrectly tries
+        /// to access two private fields called "source" and "expression". These are actually named "_source" and "_expression".</para>
+        /// 
+        /// <para>In the C# version, the code runs over expressions representing the query.  When the expressions are executed by the benchmark
+        /// tests, the C# code ends up doing a lot more work for the eight queries listed above. You cannot perform a direct performance
+        /// comparison of the C# and F# versions of this code using the tests as written. If you remove the eight affected queries from the
+        /// tests and run the benchmark, the performance is equivalent.  Another strategy is to amend the F# code to execute the full query,
+        /// rather than the lazy evaluator.  Again, the performance is equivalent.</para>
         /// <exception cref="ArgumentNullException"></exception>
         [Benchmark(Baseline = true)]
         public void ExecuteDirect() {
