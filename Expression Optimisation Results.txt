@@ -1,0 +1,463 @@
+Query Expressions
+*****************
+
+NB. The optimised query expressions were obtained after fixing the code to work correctly with .NET 6.0 and changing the code to return the optimised expression, rather than a lazy evaluator.
+
+Query 1
+*******
+C#	from x in arr.AsQueryable()
+	select !(!(!(x > 3))) && true;
+
+F#	query{
+	    for x in arr.AsQueryable() do
+	    select (not(not(not(x>3))) && true)
+}
+
+Original
+C#      System.Collections.Generic.List`1[System.Int32].Select(x => (Not(Not(Not((x > 3)))) AndAlso True))
+F#	                                [1; 2; 3; ... ].Select(x => (Not(Not(Not((x > 3)))) AndAlso True))
+
+Optimised
+C#	System.Collections.Generic.List`1[System.Int32].Select(x => Not((x > 3)))
+F#	                                [1; 2; 3; ... ].Select(x => Not((x > 3)))
+
+Query 2
+*******
+C#	var q1 = from x in arr.AsQueryable()
+	         where ((true && true) || (true && true))
+	         select x + 3;
+
+	from x in q1
+	let x2 = (x - 1)
+	let x3 = (x + 1)
+	select Tuple.Create(x2, x3);
+
+F#	let q1 = query{
+	    for x in arr.AsQueryable() do
+	    where ((true && true) || (true && true))
+	    select (x+3)
+	}
+
+	query{ 
+	    for x in q1 do
+	    let x2 = (x-1)
+	    let x3 = (x+1)
+	    select (x2, x3)
+	}
+
+Original
+C#	System.Collections.Generic.List`1[System.Int32].Where(x => ((True AndAlso True) OrElse (True AndAlso True))).Select(x => (x + 3)).Select(x => new <>f__AnonymousType0`2(x = x, x2 = (x - 1))).Select(<>h__TransparentIdentifier0 => new <>f__AnonymousType1`2(<>h__TransparentIdentifier0 = <>h__TransparentIdentifier0, x3 = (<>h__TransparentIdentifier0.x + 1))).Select(<>h__TransparentIdentifier1 => Create(<>h__TransparentIdentifier1.<>h__TransparentIdentifier0.x2, <>h__TransparentIdentifier1.x3))
+F#      System.Linq.Enumerable+SelectEnumerableIterator`2[Microsoft.FSharp.Linq.RuntimeHelpers.AnonymousObject`2[System.Int32,System.Int32],System.Tuple`2[System.Int32,System.Int32]]
+
+Optimised
+C#	System.Collections.Generic.List`1[System.Int32].Where(x => True).Select(x => (x + 3)).Select(x => new <>f__AnonymousType0`2(x = x, x2 = (x - 1))).Select(<>h__TransparentIdentifier0 => new <>f__AnonymousType1`2(<>h__TransparentIdentifier0 = <>h__TransparentIdentifier0, x3 = (<>h__TransparentIdentifier0.x + 1))).Select(<>h__TransparentIdentifier1 => Create(<>h__TransparentIdentifier1.<>h__TransparentIdentifier0.x2, <>h__TransparentIdentifier1.x3))
+F#	                                [1; 2; 3; ... ].Where(x => True).Select(x => (x + 3)).Select(_arg2 => new AnonymousObject`3(Item1 = _arg2, Item2 = (_arg2 - 1), Item3 = (_arg2 + 1))).Select(tupledArg => new AnonymousObject`2(Item1 = tupledArg.Item2, Item2 = tupledArg.Item3))
+
+Query 3
+*******
+C#	from x in arr.AsQueryable()
+	group x by x into g
+	select Tuple.Create(g.Key, g.Count());
+
+F#	query{
+	    for x in arr.AsQueryable() do
+	    groupBy x into g
+	    select (g.Key, g.Count())
+	}
+
+Original
+C#	System.Collections.Generic.List`1[System.Int32].GroupBy(x => x).Select(g => Create(g.Key, g.Count()))
+F#	System.Linq.Enumerable+SelectEnumerableIterator`2[Microsoft.FSharp.Linq.RuntimeHelpers.AnonymousObject`2[System.Int32,System.Int32],System.Tuple`2[System.Int32,System.Int32]]
+
+Optimised
+C#	System.Collections.Generic.List`1[System.Int32].GroupBy(x => x).Select(g => Create(g.Key, g.Count()))
+F#	                                [1; 2; 3; ... ].GroupBy(x => x).Select(g => new AnonymousObject`2(Item1 = g.Key, Item2 = g.Count()))
+
+Query 4
+*******
+C#	// The C# compiler automatically optimises the following query:
+
+	from x in arr.AsQueryable()
+	orderByDescending x
+	thenBy x
+	select true ? x : x)
+
+	// Hence, we construct the required expression, as follows:
+
+	var paramExpr = Expression.Parameter(typeof(int), "x");
+	var expr = (MethodCallExpression)arr.AsQueryable().OrderByDescending(x => x).ThenBy(x => x)
+	    .Select(x => x > 0 ? x : 1).Expression;  // Create a dummy condition expression which we will then replace.
+	return new EnumerableQuery<int>(Expression.Call(expr.Object, expr.Method, expr.Arguments[0],
+	    Expression.Quote(Expression.Lambda<Func<int, int>>(
+	        Expression.Condition(Expression.Constant(true), paramExpr, paramExpr), paramExpr))));
+
+F#	query{
+	    for x in arr.AsQueryable() do
+	    sortByDescending x
+	    thenBy x
+	    select (if true then x else x)
+	}
+
+Original
+C#	System.Collections.Generic.List`1[System.Int32].OrderByDescending(x => x).ThenBy(x => x).Select(x => IIF(True, x, x))
+F#	                                [1; 2; 3; ... ].OrderByDescending(x => x).ThenBy(x => x).Select(x => IIF(True, x, x))
+
+Optimised
+C#	System.Collections.Generic.List`1[System.Int32].OrderByDescending(x => x).ThenBy(x => x).Select(x => x)
+F#	                                [1; 2; 3; ... ].OrderByDescending(x => x).ThenBy(x => x).Select(x => x)
+
+Query 5
+*******
+C#	from x in arr.AsQueryable()
+	group x by x
+	into g
+	select Tuple.Create(g, g.Key, g.Count());
+
+F#	query{
+	    for x in arr.AsQueryable() do
+	    groupValBy x x into g
+	    select (g, g.Key, g.Count())
+	}
+
+Original
+C#	System.Collections.Generic.List`1[System.Int32].GroupBy(x => x).Select(g => Create(g, g.Key, g.Count()))
+F#	System.Linq.Enumerable+SelectEnumerableIterator`2[Microsoft.FSharp.Linq.RuntimeHelpers.AnonymousObject`3[System.Linq.IGrouping`2[System.Int32,System.Int32],System.Int32,System.Int32],System.Tuple`3[System.Linq.IGrouping`2[System.Int32,System.Int32],System.Int32,System.Int32]]
+
+Optimised
+C#	System.Collections.Generic.List`1[System.Int32].GroupBy(x => x).Select(g => Create(g, g.Key, g.Count()))
+F#	                                [1; 2; 3; ... ].GroupBy(x => x, x => x).Select(g => new AnonymousObject`3(Item1 = g, Item2 = g.Key, Item3 = g.Count()))
+
+Query 6
+*******
+C#	from x1 in arr.AsQueryable()
+	join x2 in arr.AsQueryable()
+	    on x1 equals x2
+	select Tuple.Create(x1, x2);
+
+F#	query{
+	    for x1 in arr.AsQueryable() do
+	    join x2 in arr.AsQueryable() on (x1 = x2)
+	    select (x1, x2)
+	}
+
+Original
+C#	System.Collections.Generic.List`1[System.Int32].Join(System.Collections.Generic.List`1[System.Int32], x1 => x1, x2 => x2, (x1, x2) => Create(x1, x2))
+F#	System.Linq.Enumerable+SelectEnumerableIterator`2[Microsoft.FSharp.Linq.RuntimeHelpers.AnonymousObject`2[System.Int32,System.Int32],System.Tuple`2[System.Int32,System.Int32]]
+
+Optimised
+C#	System.Collections.Generic.List`1[System.Int32].Join(System.Collections.Generic.List`1[System.Int32], x1 => x1, x2 => x2, (x1, x2) => Create(x1, x2))
+F#	                                [1; 2; 3; ... ].Join([1; 2; 3; ... ], x1 => x1, x2 => x2, (x1, x2) => new AnonymousObject`2(Item1 = x1, Item2 = x2)).Select(_arg1 => new AnonymousObject`2(Item1 = _arg1.Item1, Item2 = _arg1.Item2)).Select(tupledArg => new AnonymousObject`2(Item1 = tupledArg.Item1, Item2 = tupledArg.Item2))
+
+Query 7
+*******
+C#	from x in arr.AsQueryable()
+	let tmp = x
+	select !(!(!(x > 3))) && true;
+
+F#	query{
+	    for x in arr.AsQueryable() do
+	    let tmp = x
+	    select (not(not(not(x>3))) && true)
+	}
+
+Original
+C#	System.Collections.Generic.List`1[System.Int32].GroupJoin(System.Collections.Generic.List`1[System.Int32], x1 => (x1 + 1), x2 => x2, (x1, g) => new <>f__AnonymousType3`2(x1 = x1, g = g)).Join(System.Collections.Generic.List`1[System.Int32], <>h__TransparentIdentifier0 => <>h__TransparentIdentifier0.x1, x3 => x3, (<>h__TransparentIdentifier0, x3) => Create(<>h__TransparentIdentifier0.x1, x3))
+F#	                                [1; 2; 3; ... ].Select(_arg1 => new AnonymousObject`2(Item1 = _arg1, Item2 = _arg1)).Select(tupledArg => (Not(Not(Not((tupledArg.Item1 > 3)))) AndAlso True))
+
+Optimised
+C#	System.Collections.Generic.List`1[System.Int32].Select(x => Not((x > 3)))
+F#	                                [1; 2; 3; ... ].Select(_arg1 => new AnonymousObject`2(Item1 = _arg1, Item2 = _arg1)).Select(tupledArg => Not((tupledArg.Item1 > 3)))
+
+
+Query 8
+*******
+C#	from x1 in arr.AsQueryable()
+	join x2 in arr.AsQueryable()
+	    on x1 + 1 equals x2 into g
+	join x3 in arr.AsQueryable() 
+	    on x1 equals x3
+	select Tuple.Create(x1, x3);
+
+F#	query{
+	    for x1 in arr.AsQueryable() do
+	    groupJoin x2 in arr.AsQueryable()
+	        on ((x1+1) = x2) into g
+	    join x3 in arr.AsQueryable() on (x1 = x3)
+	    select (x1, x3)
+	}
+
+Original
+C#	System.Collections.Generic.List`1[System.Int32].GroupJoin(System.Collections.Generic.List`1[System.Int32], x1 => x1, x2 => x2, (x1, r) => new <>f__AnonymousType4`2(x1 = x1, r = r)).SelectMany(<>h__TransparentIdentifier0 => <>h__TransparentIdentifier0.r.DefaultIfEmpty(), (<>h__TransparentIdentifier0, y) => Create(True, y, "asdf"))
+F#	System.Linq.Enumerable+SelectEnumerableIterator`2[Microsoft.FSharp.Linq.RuntimeHelpers.AnonymousObject`2[System.Int32,System.Int32],System.Tuple`2[System.Int32,System.Int32]]
+
+Optimised
+C#	System.Collections.Generic.List`1[System.Int32].GroupJoin(System.Collections.Generic.List`1[System.Int32], x1 => (x1 + 1), x2 => x2, (x1, g) => new <>f__AnonymousType3`2(x1 = x1, g = g)).Join(System.Collections.Generic.List`1[System.Int32], <>h__TransparentIdentifier0 => <>h__TransparentIdentifier0.x1, x3 => x3, (<>h__TransparentIdentifier0, x3) => Create(<>h__TransparentIdentifier0.x1, x3))
+F#	                                [1; 2; 3; ... ].GroupJoin([1; 2; 3; ... ], x1 => (x1 + 1), x2 => x2, (x1, g) => new AnonymousObject`2(Item1 = x1, Item2 = g)).Join([1; 2; 3; ... ], tupledArg => tupledArg.Item1, x3 => x3, (tupledArg, x3) => new AnonymousObject`3(Item1 = tupledArg.Item1, Item2 = tupledArg.Item2, Item3 = x3)).Select(_arg1 => new AnonymousObject`3(Item1 = _arg1.Item1, Item2 = _arg1.Item2, Item3 = _arg1.Item3)).Select(tupledArg => new AnonymousObject`2(Item1 = tupledArg.Item1, Item2 = tupledArg.Item3))
+
+Query 9
+*******
+C#	from x1 in arr.AsQueryable()
+	join x2 in arr.AsQueryable()
+	    on x1 equals x2 into r
+	from y in r.DefaultIfEmpty()
+	select Tuple.Create(true, y, "asdf");
+
+F#	query{
+	    for x1 in arr.AsQueryable() do
+	    leftOuterJoin x2 in arr.AsQueryable() on (x1 = x2) into r
+	    for y in r.DefaultIfEmpty() do
+	    select (true, y, "asdf")
+	}
+
+Original
+C#	System.Collections.Generic.List`1[System.Int32].GroupJoin(System.Collections.Generic.List`1[System.Int32], x1 => x1, x2 => x2, (x1, r) => new <>f__AnonymousType4`2(x1 = x1, r = r)).SelectMany(<>h__TransparentIdentifier0 => <>h__TransparentIdentifier0.r.DefaultIfEmpty(), (<>h__TransparentIdentifier0, y) => Create(True, y, "asdf"))
+F#	System.Linq.Enumerable+SelectEnumerableIterator`2[Microsoft.FSharp.Linq.RuntimeHelpers.AnonymousObject`3[System.Boolean,System.Int32,System.String],System.Tuple`3[System.Boolean,System.Int32,System.String]]
+
+Optimised
+C#	System.Collections.Generic.List`1[System.Int32].GroupJoin(System.Collections.Generic.List`1[System.Int32], x1 => x1, x2 => x2, (x1, r) => new <>f__AnonymousType4`2(x1 = x1, r = r)).SelectMany(<>h__TransparentIdentifier0 => <>h__TransparentIdentifier0.r.DefaultIfEmpty(), (<>h__TransparentIdentifier0, y) => Create(True, y, "asdf"))
+F#	                                [1; 2; 3; ... ].GroupJoin(                                [1; 2; 3; ... ], x1 => x1, x2 => x2, (x1, r) => new AnonymousObject`2(Item1 = x1, Item2 = r.DefaultIfEmpty())).SelectMany(_arg1 => _arg1.Item2.DefaultIfEmpty(), (_arg1, _arg2) => new AnonymousObject`3(Item1 = _arg1.Item1, Item2 = _arg1.Item2, Item3 = _arg2)).Select(tupledArg => new AnonymousObject`3(Item1 = True, Item2 = tupledArg.Item3, Item3 = "asdf"))
+
+Query 10
+********
+C#	from x in arr.AsQueryable()
+	where (from y in arr.AsQueryable()
+	where x == -y select y).Any()
+	select x;
+
+F#	query{
+	    for x in arr.AsQueryable() do
+	    where
+	        (query {
+	            for y in arr.AsQueryable() do
+	            exists (x = -y) })
+	    select (x)
+	}
+
+Original
+C#	System.Collections.Generic.List`1[System.Int32].Where(x => value(Tests.Queries+<>c__DisplayClass11_0).arr.AsQueryable().Where(y => (x == -y)).Any())
+F#	                                [1; 2; 3; ... ].Where(x => [1; 2; 3; ... ].AsQueryable().Any(y => (x == -y)))
+
+Optimised
+C#	System.Collections.Generic.List`1[System.Int32].Where(x => value(Tests.Queries+<>c__DisplayClass11_0).arr.AsQueryable().Where(y => (x == -y)).Any())
+F#	                                [1; 2; 3; ... ].Where(x => [1; 2; 3; ... ].AsQueryable().Any(y => (x == -y)))
+
+Query 11
+********
+C#	(from x in arr.AsQueryable()
+	 select x)
+	   .Distinct()
+	   .SkipWhile(_ => cond1 < 3)
+	   .Skip(1)
+	   .Take(4)
+	   .OrderBy(x => (int?)x);
+
+F#
+	query{
+	    for x in arr.AsQueryable() do
+	    distinct
+	    skipWhile (cond1 < 3)
+	    skip 1
+	    take 4
+	    sortByNullable (Nullable(x))
+	}
+
+Original
+C#	System.Collections.Generic.List`1[System.Int32].Select(x => x).Distinct().SkipWhile(_ => (Queries.cond1 < 3)).Skip(1).Take(4).OrderBy(x => Convert(x, Nullable`1))
+F#	                                               [1; 2; 3; ... ].Distinct().SkipWhile(x => (Queries.cond1 < 3)).Skip(1).Take(4).OrderBy(x => Convert(x, Nullable`1))
+
+Optimised
+C#	System.Collections.Generic.List`1[System.Int32].Select(x => x).Distinct().SkipWhile(_ => (Queries.cond1 < 3)).Skip(1).Take(4).OrderBy(x => Convert(x, Nullable`1))
+F#	                                               [1; 2; 3; ... ].Distinct().SkipWhile(x => (Queries.cond1 < 3)).Skip(1).Take(4).OrderBy(x => Convert(x, Nullable`1))
+
+
+Query 12
+********
+C#	int f(int v) => v;
+
+	from x in arr.AsQueryable()
+	where cond1 == 12
+	where cond1 == 12 && true && f(x) > -1
+	let c = 2
+	let y = cond1
+	let y2 = x
+	where cond1 == 12
+	let tmp = y + c + f(x)
+	where tmp > 1
+	orderby (int?)x
+	select x;
+
+F#	let f(v:int) = v
+
+	query{
+	    for x in arr.AsQueryable() do
+	    where (cond1 = 12)
+	    where (cond1 = 12 && true && f(x) >  -1)
+	    let c = 2
+	    let y, y2 = cond1, x
+	    where (cond1 = 12)
+	    let tmp = y+c+f(x)
+	    where (tmp>1)
+	    sortByNullable (Nullable(x))
+	}
+
+Original
+C#	System.Collections.Generic.List`1[System.Int32].Where(x => (Queries.cond1 == 12)).Where(x => (((Queries.cond1 == 12) AndAlso True) AndAlso (f(x) > -1))).Select(x => new <>f__AnonymousType5`2(x = x, c = 2)).Select(<>h__TransparentIdentifier0 => new <>f__AnonymousType6`2(<>h__TransparentIdentifier0 = <>h__TransparentIdentifier0, y = Queries.cond1)).Select(<>h__TransparentIdentifier1 => new <>f__AnonymousType7`2(<>h__TransparentIdentifier1 = <>h__TransparentIdentifier1, y2 = <>h__TransparentIdentifier1.<>h__TransparentIdentifier0.x)).Where(<>h__TransparentIdentifier2 => (Queries.cond1 == 12)).Select(<>h__TransparentIdentifier2 => new <>f__AnonymousType8`2(<>h__TransparentIdentifier2 = <>h__TransparentIdentifier2, tmp = ((<>h__TransparentIdentifier2.<>h__TransparentIdentifier1.y + <>h__TransparentIdentifier2.<>h__TransparentIdentifier1.<>h__TransparentIdentifier0.c) + f(<>h__TransparentIdentifier2.<>h__TransparentIdentifier1.<>h__TransparentIdentifier0.x)))).Where(<>h__TransparentIdentifier3 => (<>h__TransparentIdentifier3.tmp > 1)).OrderBy(<>h__TransparentIdentifier3 => Convert(<>h__TransparentIdentifier3.<>h__TransparentIdentifier2.<>h__TransparentIdentifier1.<>h__TransparentIdentifier0.x, Nullable`1)).Select(<>h__TransparentIdentifier3 => <>h__TransparentIdentifier3.<>h__TransparentIdentifier2.<>h__TransparentIdentifier1.<>h__TransparentIdentifier0.x)
+F#	System.Linq.Enumerable+SelectEnumerableIterator`2[Microsoft.FSharp.Linq.RuntimeHelpers.AnonymousObject`5[System.Int32,System.Int32,System.Int32,System.Int32,System.Int32],System.Tuple`5[System.Int32,System.Int32,System.Int32,System.Int32,System.Int32]]
+
+Optimised
+C#	System.Collections.Generic.List`1[System.Int32].Where(x => (Queries.cond1 == 12)).Where(x => ((Queries.cond1 == 12) AndAlso (f(x) > -1))).Select(x => new <>f__AnonymousType5`2(x = x, c = 2)).Select(<>h__TransparentIdentifier0 => new <>f__AnonymousType6`2(<>h__TransparentIdentifier0 = <>h__TransparentIdentifier0, y = Queries.cond1)).Select(<>h__TransparentIdentifier1 => new <>f__AnonymousType7`2(<>h__TransparentIdentifier1 = <>h__TransparentIdentifier1, y2 = <>h__TransparentIdentifier1.<>h__TransparentIdentifier0.x)).Where(<>h__TransparentIdentifier2 => (Queries.cond1 == 12)).Select(<>h__TransparentIdentifier2 => new <>f__AnonymousType8`2(<>h__TransparentIdentifier2 = <>h__TransparentIdentifier2, tmp = ((<>h__TransparentIdentifier2.<>h__TransparentIdentifier1.y + <>h__TransparentIdentifier2.<>h__TransparentIdentifier1.<>h__TransparentIdentifier0.c) + f(<>h__TransparentIdentifier2.<>h__TransparentIdentifier1.<>h__TransparentIdentifier0.x)))).Where(<>h__TransparentIdentifier3 => (<>h__TransparentIdentifier3.tmp > 1)).OrderBy(<>h__TransparentIdentifier3 => Convert(<>h__TransparentIdentifier3.<>h__TransparentIdentifier2.<>h__TransparentIdentifier1.<>h__TransparentIdentifier0.x, Nullable`1)).Select(<>h__TransparentIdentifier3 => <>h__TransparentIdentifier3.<>h__TransparentIdentifier2.<>h__TransparentIdentifier1.<>h__TransparentIdentifier0.x)
+F#	                                [1; 2; 3; ... ].Where(x => (Queries.cond1 == 12)).Where(x => ((Queries.cond1 == 12) AndAlso (value(Tests.Queries+f@136).Invoke(x) > -1))).Select(_arg2 => new AnonymousObject`4(Item1 = _arg2, Item2 = 2, Item3 = _arg2, Item4 = Queries.cond1)).Where(tupledArg => (Queries.cond1 == 12)).Select(_arg3 => new AnonymousObject`5(Item1 = _arg3.Item1, Item2 = _arg3.Item2, Item3 = _arg3.Item3, Item4 = _arg3.Item4, Item5 = ((_arg3.Item4 + _arg3.Item2) + value(Tests.Queries+f@136).Invoke(_arg3.Item1)))).Where(tupledArg => (tupledArg.Item5 > 1)).OrderBy(tupledArg => Convert(tupledArg.Item1, Nullable`1))
+
+Query 13
+********
+C#	from x in arr.AsQueryable()
+	where Tuple.Create(x, true) == Tuple.Create(x, true) && true
+	select (x > 0 && x > 1 && x > 2 && x > 3 && x > 4 && x > 0 && x > 1 && x > 2 && x > 3 && x > 4) ||
+	        x < 0 || x < 1 || x < 2 || x < 3 || x < 4 || x < 0 || x < 1 || x < 2 || x < 3 || x < 4;
+
+F#	query{
+	    for x in arr.AsQueryable() do
+	    where ((x, true) = (x, true) && true)
+	    select ((x>0 && x>1 && x>2 && x>3 && x>4 && x>0 && x>1 && x>2 && x>3 && x>4) ||
+	        (x<0 || x<1 || x<2 || x<3 || x<4 || x<0 || x<1 || x<2 || x<3 || x<4))
+	}
+
+Original
+C#	System.Collections.Generic.List`1[System.Int32].Where(x => ((Create(x, True) == Create(x, True)) AndAlso True)).Select(x => ((((((((((((((((((((x > 0) AndAlso (x > 1)) AndAlso (x > 2)) AndAlso (x > 3)) AndAlso (x > 4)) AndAlso (x > 0)) AndAlso (x > 1)) AndAlso (x > 2)) AndAlso (x > 3)) AndAlso (x > 4)) OrElse (x < 0)) OrElse (x < 1)) OrElse (x < 2)) OrElse (x < 3)) OrElse (x < 4)) OrElse (x < 0)) OrElse (x < 1)) OrElse (x < 2)) OrElse (x < 3)) OrElse (x < 4)))
+F#	                                [1; 2; 3; ... ].Where(x => ((new Tuple`2(x, True) == new Tuple`2(x, True)) AndAlso True)).Select(x => (((((((((((x > 0) AndAlso (x > 1)) AndAlso (x > 2)) AndAlso (x > 3)) AndAlso (x > 4)) AndAlso (x > 0)) AndAlso (x > 1)) AndAlso (x > 2)) AndAlso (x > 3)) AndAlso (x > 4)) OrElse ((((((((((x < 0) OrElse (x < 1)) OrElse (x < 2)) OrElse (x < 3)) OrElse (x < 4)) OrElse (x < 0)) OrElse (x < 1)) OrElse (x < 2)) OrElse (x < 3)) OrElse (x < 4))))
+
+Optimised
+C#	System.Collections.Generic.List`1[System.Int32].Where(x => (Create(x, True) == Create(x, True))).Select(x => (((((((x < 1) OrElse (x < 0)) OrElse ((x < 4) OrElse (x < 3))) OrElse (((x < 2) OrElse (x < 1)) OrElse (((((((x > 2) AndAlso (x > 1)) AndAlso ((x > 0) AndAlso (x > 4))) AndAlso (((x > 3) AndAlso (x > 2)) AndAlso ((x > 0) AndAlso (x > 1)))) AndAlso (x > 3)) AndAlso (x > 4)) OrElse (x < 0)))) OrElse (x < 2)) OrElse (x < 3)) OrElse (x < 4)))
+F#	                                [1; 2; 3; ... ].Where(x => (new Tuple`2(x, True) == new Tuple`2(x, True))).Select(x => (((((((x > 0) AndAlso (x > 1)) AndAlso ((x > 2) AndAlso (x > 3))) AndAlso (((x > 4) AndAlso (x > 0)) AndAlso ((x > 1) AndAlso (x > 2)))) AndAlso (x > 3)) AndAlso (x > 4)) OrElse ((((((x < 0) OrElse (x < 1)) OrElse ((x < 2) OrElse (x < 3))) OrElse (((x < 4) OrElse (x < 0)) OrElse ((x < 1) OrElse (x < 2)))) OrElse (x < 3)) OrElse (x < 4))))
+
+Query 14
+********
+C#	var aq = arr.AsQueryable();
+
+	from x in arr.AsQueryable()
+	where arr == arr
+	where aq == aq.Reverse().Reverse().AsQueryable()
+	where arr.Equals(new[] { 1, 2, 3 })
+	select !(!(!(x > 3))) && true;
+
+F#	let aq = arr.AsQueryable()
+
+	query{
+	   	 for x in arr.AsQueryable() do
+	    where (arr = arr)
+	    where (aq = aq.Reverse().Reverse().AsQueryable())
+	    where (arr = [1; 2; 3])
+	    select (not(not(not(x>3))) && true)
+	}
+
+Original
+C#	System.Collections.Generic.List`1[System.Int32].Where(x => (value(Tests.Queries+<>c__DisplayClass17_0).arr == value(Tests.Queries+<>c__DisplayClass17_0).arr)).Where(x => (value(Tests.Queries+<>c__DisplayClass17_0).aq == value(Tests.Queries+<>c__DisplayClass17_0).aq.Reverse().Reverse().AsQueryable())).Where(x => value(Tests.Queries+<>c__DisplayClass17_0).arr.Equals(new [] {1, 2, 3})).Select(x => (Not(Not(Not((x > 3)))) AndAlso True))
+F#	                                [1; 2; 3; ... ].Where(x => ([1; 2; 3; ... ] == [1; 2; 3; ... ])).Where(x => ([1; 2; 3; ... ] == [1; 2; 3; ... ].Reverse().Reverse().AsQueryable())).Where(x => ([1; 2; 3; ... ] == Cons(1, Cons(2, Cons(3, get_Empty()))))).Select(x => (Not(Not(Not((x > 3)))) AndAlso True))
+
+Optimised
+C#	System.Collections.Generic.List`1[System.Int32].Where(x => (value(Tests.Queries+<>c__DisplayClass17_0).arr == value(Tests.Queries+<>c__DisplayClass17_0).arr)).Where(x => (value(Tests.Queries+<>c__DisplayClass17_0).aq == value(Tests.Queries+<>c__DisplayClass17_0).aq.Reverse().Reverse().AsQueryable())).Where(x => value(Tests.Queries+<>c__DisplayClass17_0).arr.Equals(new [] {1, 2, 3})).Select(x => Not((x > 3)))
+F#	                                [1; 2; 3; ... ].Where(x => True).Where(x => ([1; 2; 3; ... ] == [1; 2; 3; ... ].Reverse().Reverse().AsQueryable())).Where(x => ([1; 2; 3; ... ] == Cons(1, Cons(2, Cons(3, get_Empty()))))).Select(x => Not((x > 3)))
+
+
+Query 15
+********
+C#	int? y = null;
+	object? xx = new int?();
+
+	from x in arr.AsQueryable()
+	where !(((int?)xx).HasValue || (int?)xx > 2) && (!y.HasValue || y.Value > x) && true
+	select 1;
+
+F#	let y : int Option = Option.None
+	let xx = box(Nullable<int>())
+
+	query{
+	    for x in arr.AsQueryable() do
+	    where ((not ((xx :?> Nullable<int>).HasValue) || 
+	            (xx :?> Nullable<int>).Value > 2) && (y.IsNone || (y.Value > x)) && true)
+	    select (1)
+}
+
+Original
+C#	System.Collections.Generic.List`1[System.Int32].Where(x => ((Not((Convert(value(Tests.Queries+<>c__DisplayClass18_0).xx, Nullable`1).HasValue OrElse (Convert(value(Tests.Queries+<>c__DisplayClass18_0).xx, Nullable`1) > Convert(2, Nullable`1)))) AndAlso (Not(value(Tests.Queries+<>c__DisplayClass18_0).y.HasValue) OrElse (value(Tests.Queries+<>c__DisplayClass18_0).y.Value > x))) AndAlso True)).Select(x => 1)
+F#	                                [1; 2; 3; ... ].Where(x => (((Not(Convert(null, Nullable`1).HasValue) OrElse (Convert(null, Nullable`1).Value > 2)) AndAlso (get_IsNone(null) OrElse (null.Value > x))) AndAlso True)).Select(x => 1)
+
+Optimised
+C#	System.Collections.Generic.List`1[System.Int32].Where(x => Not((Convert(value(Tests.Queries+<>c__DisplayClass18_0).xx, Nullable`1).HasValue OrElse (Convert(value(Tests.Queries+<>c__DisplayClass18_0).xx, Nullable`1) > Convert(2, Nullable`1))))).Select(x => 1)
+F#	                                [1; 2; 3; ... ].Where(x => ((Not(Convert(null, Nullable`1).HasValue) OrElse (Convert(null, Nullable`1).Value > 2)) AndAlso (get_IsNone(null) OrElse (null.Value > x)))).Select(x => 1)
+
+Query 16
+******** 
+C#	var asItms = arr.AsQueryable().Select(ToImts);
+	var arr2 = asItms.AsQueryable();
+	var onlyX = true;
+
+	from i in arr2
+	join j in arr2
+	    on i.x equals j.x
+	where ((!onlyX) || (onlyX && i.x == 3)) && arr2.Any(sl => false || sl.x == j.x && j.x != 1)
+	select Tuple.Create(i.x, j.x);
+
+F#	let toImts x = {x = x}
+	let asItms = arr |> List.map(toImts)
+	let arr2 = asItms.AsQueryable()
+	let onlyX = true
+
+	query{
+	    for i in arr2 do
+	    join j in arr2 on (i.x = j.x)
+	    where (((not onlyX) || 
+	            (onlyX && i.x=3)) && arr2.Any(fun sl -> false || sl.x = j.x && j.x <> 1))
+	    select (i.x, j.x)
+	}
+
+Original
+C#	System.Collections.Generic.List`1[Tests.Itm].Join(value(System.Collections.Generic.List`1[Tests.Itm]), i => i.x, j => j.x, (i, j) => new <>f__AnonymousType9`2(i = i, j = j)).Where(<>h__TransparentIdentifier0 => ((Not(value(Tests.Queries+<>c__DisplayClass20_0).onlyX) OrElse (value(Tests.Queries+<>c__DisplayClass20_0).onlyX AndAlso (<>h__TransparentIdentifier0.i.x == 3))) AndAlso value(Tests.Queries+<>c__DisplayClass20_0).arr2.Any(sl => (False OrElse ((sl.x == <>h__TransparentIdentifier0.j.x) AndAlso (<>h__TransparentIdentifier0.j.x != 1)))))).Select(<>h__TransparentIdentifier0 => Create(<>h__TransparentIdentifier0.i.x, <>h__TransparentIdentifier0.j.x))
+F#	System.Linq.Enumerable+SelectEnumerableIterator`2[Microsoft.FSharp.Linq.RuntimeHelpers.AnonymousObject`2[System.Int32,System.Int32],System.Tuple`2[System.Int32,System.Int32]]
+
+Optimised
+C#	System.Collections.Generic.List`1[Tests.Itm].Join(value(System.Collections.Generic.List`1[Tests.Itm]), i => i.x, j => j.x, (i, j) => new <>f__AnonymousType9`2(i = i, j = j)).Where(<>h__TransparentIdentifier0 => ((<>h__TransparentIdentifier0.i.x == 3) AndAlso value(Tests.Queries+<>c__DisplayClass20_0).arr2.Any(sl => ((sl.x == <>h__TransparentIdentifier0.j.x) AndAlso (<>h__TransparentIdentifier0.j.x != 1))))).Select(<>h__TransparentIdentifier0 => Create(<>h__TransparentIdentifier0.i.x, <>h__TransparentIdentifier0.j.x))
+F#	     [{ x = 1 }; { x = 2 }; { x = 3 }; ... ].Join([{ x = 1 }; { x = 2 }; { x = 3 }; ... ], i => i.x, j => j.x, (i, j) => new AnonymousObject`2(Item1 = i, Item2 = j)).Select(_arg1 => new AnonymousObject`2(Item1 = _arg1.Item1, Item2 = _arg1.Item2)).Where(tupledArg => ((tupledArg.Item1.x == 3) AndAlso [{ x = 1 }; { x = 2 }; { x = 3 }; ... ].Any(QuotationToLambdaExpression(SubstHelper(NewDelegate (Func`2, sl,
+                  IfThenElse (Value (false), Value (true),
+                              IfThenElse (Call (None, op_Equality,
+                                                [PropertyGet (Some (sl), x, []),
+                                                 PropertyGet (Some (PropertyGet (Some (tupledArg),
+                                                                                 Item2,
+                                                                                 [])),
+                                                              x, [])]),
+                                          Call (None, op_Inequality,
+                                                [PropertyGet (Some (PropertyGet (Some (tupledArg),
+                                                                                 Item2,
+                                                                                 [])),
+                                                              x, []), Value (1)]),
+                                          Value (false)))), new [] {tupledArg}, new [] {Convert(tupledArg, Object)}))))).Select(tupledArg => new AnonymousObject`2(Item1 = tupledArg.Item1.x, Item2 = tupledArg.Item2.x))
+
+
+
+
+Benchmark Results
+*****************
+
+BenchmarkDotNet=v0.13.1, OS=Windows 10.0.22000
+Intel Core i7-9750H CPU 2.60GHz, 1 CPU, 12 logical and 6 physical cores
+.NET SDK=6.0.100
+  [Host]     : .NET 6.0.0 (6.0.21.52210), X64 RyuJIT DEBUG
+  DefaultJob : .NET 6.0.0 (6.0.21.52210), X64 RyuJIT
+
+The two original benchmark tests mainly measure the time taken to execute the Linq expressions, which is not dependent on which compiler is used. They do not provide much insight into the performance of the Optimizer code.
+
+To help address this, I created a third benchmark test that only visits expressions and does not execute them (VisitOpt1). I've retained the C# version of this code and provided the F# version as a comment. This third test reports a noticeable difference between C# and F#. However, the expressions produced by the C# and F# compilers differ in various ways. The benchmark results are therefore not strictly comparable. For example, C# creates so-called 'display' classes for variables used in closures, and these classes appear in a number of the C#-generated expressions. These classes aid the display of variable values during debugging. The F# compiler does not produce equivalent classes for any of the queries. The optimiser has to dynamically invoke the display classes when evaluating constants which adds significant overhead.
+
+C#
+|        Method |        Mean |     Error |      StdDev |      Median | Ratio | RatioSD |    Gen 0 |   Gen 1 | Allocated |
+|-------------- |------------:|----------:|------------:|------------:|------:|--------:|---------:|--------:|----------:|
+| ExecuteDirect | 28,629.4 μs | 797.52 μs | 2,313.75 μs | 28,017.3 μs |  1.00 |    0.00 | 125.0000 | 62.5000 |    824 KB |
+|   ExecuteOpt1 | 28,861.4 μs | 799.67 μs | 2,268.54 μs | 27,982.5 μs |  1.01 |    0.11 | 125.0000 | 62.5000 |    896 KB |
+|     VisitOpt1 |    455.3 μs |  16.96 μs |    48.12 μs |    444.9 μs |  0.02 |    0.00 |   9.2773 |  0.4883 |     59 KB |
+
+F#
+|        Method |        Mean |     Error |      StdDev |      Median | Ratio | RatioSD |    Gen 0 |   Gen 1 | Allocated |
+|-------------- |------------:|----------:|------------:|------------:|------:|--------:|---------:|--------:|----------:|
+| ExecuteDirect | 15,788.3 μs | 571.01 μs | 1,656.59 μs | 15,792.5 μs |  1.00 |    0.00 |  62.5000 | 31.2500 |    451 KB |
+|   ExecuteOpt1 | 29,534.3 μs | 793.74 μs | 2,315.37 μs | 29,190.7 μs |  1.89 |    0.26 | 125.0000 | 62.5000 |    903 KB |
+|     VisitOpt1 |    233.7 μs |  13.12 μs |    38.68 μs |    219.9 μs |  0.01 |    0.00 |   8.3008 |       - |     51 KB |
