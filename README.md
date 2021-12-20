@@ -20,9 +20,15 @@ A second problem is not exactly a bug, but it is an issue if you attempt to comp
 
 The behaviour of the C# code is quite different.  When you build an IQueryable\<T\> Linq expression, you get the actual expression itself, rather than a lazy evaluator.  That is because IQueryable\<T\> is all about supporting Linq providers, and the last thing the C# compiler should do is second-guess the strategy adopted by a provider by assuming lazy evaluation.  How would that work against a database, for example?  IQueryable\<T\> needs to provide the full query expression and let the provider figure what to do with it.  Providers should certainly not have to reflect on private members to get the full query expression!  
   
-I’m not familiar enough with the thinking behind F#’s query expressions to criticise its implementation, but I can certainly say that F# query expressions are not Linq provider-friendly, which rather begs the question, in my mind, why they return an IQueryable\<T\>.
+I’m not familiar enough with the thinking behind F#’s query expressions to criticise its implementation, but F# query expressions do not appear to be Linq provider-friendly.
   
 In the C# code, the benchmark tests get the full query expressions for all the queries which they then execute.  When you run the benchmark tests for the C# code, you will find they take roughly twice as long. This is because most of the work is in executing the Linq expressions.  The C# tests do twice the amount of work as the F# tests.  If you eliminate the problem queries, or if you amend the F# code to replace the SelectEnumerableIterator expressions with the full query expressions, the benchmark figures are nearly identical for the ‘visit and execute’ test, as you might expect.
+
+The two benchmark tests mainly measure the time taken to execute the Linq expressions, which is not dependent on which compiler is used. The time spent visiting and optimising the expressions is far less (less than 1% of the total time for the F# tests).  The tests, therefore, do not provide much insight into the performance of the Optimizer code.
+
+To help address this, I created a third benchmark test that only visits expressions and does not execute them (VisitOpt1). I've retained the C# version of this code and provided the F# version as a comment.  This third test reports a noticeable difference between C# and F#.  However, the expressions produced by the C# and F# compilers differ in various ways. The benchmark results are therefore not strictly comparable.  For example, C# creates so-called 'display' classes for variables used in closures, and these classes appear in a number of the C#-generated expressions.  These classes aid the display of variable values during debugging.  The F# compiler does not produce equivalent classes for any of the queries.  The optimiser has to dynamically invoke the display classes when evaluating constants which adds significant overhead.
+
+The results for all three benchmark tests are shown below.  Further information and analysis of the query expressions is given in the 'Expression Optimisation Results.txt' file.
 
 BenchmarkDotNet=v0.13.1, OS=Windows 10.0.22000  
 Intel Core i7-9750H CPU 2.60GHz, 1 CPU, 12 logical and 6 physical cores  
@@ -30,15 +36,18 @@ Intel Core i7-9750H CPU 2.60GHz, 1 CPU, 12 logical and 6 physical cores
 &nbsp;&nbsp;\[Host\]     : .NET 6.0.0 (6.0.21.52210), X64 RyuJIT DEBUG  
 &nbsp;&nbsp;DefaultJob : .NET 6.0.0 (6.0.21.52210), X64 RyuJIT  
     
-    
 F#
 
-|      Method |     Mean |    Error |   StdDev |   Median |    Gen 0 | Allocated |
-|------------ |---------:|---------:|---------:|---------:|---------:|----------:|
-| ExecuteOpt1 | 34.08 ms | 2.069 ms | 5.969 ms | 32.12 ms | 100.0000 |    941 KB |
+|        Method |        Mean |     Error |      StdDev |      Median | Ratio | RatioSD |    Gen 0 |   Gen 1 | Allocated |
+|-------------- |------------:|----------:|------------:|------------:|------:|--------:|---------:|--------:|----------:|
+| ExecuteDirect | 15,788.3 μs | 571.01 μs | 1,656.59 μs | 15,792.5 μs |  1.00 |    0.00 |  62.5000 | 31.2500 |    451 KB |
+|   ExecuteOpt1 | 29,534.3 μs | 793.74 μs | 2,315.37 μs | 29,190.7 μs |  1.89 |    0.26 | 125.0000 | 62.5000 |    903 KB |
+|     VisitOpt1 |    233.7 μs |  13.12 μs |    38.68 μs |    219.9 μs |  0.01 |    0.00 |   8.3008 |       - |     51 KB |
 
 C#
 
-|        Method |     Mean |    Error |   StdDev | Ratio | RatioSD |    Gen 0 |   Gen 1 | Allocated |
-|-------------- |---------:|---------:|---------:|------:|--------:|---------:|--------:|----------:|
-|   ExecuteOpt1 | 35.83 ms | 0.674 ms | 1.392 ms |  1.02 |    0.07 | 133.3333 | 66.6667 |    977 KB |
+|        Method |        Mean |     Error |      StdDev |      Median | Ratio | RatioSD |    Gen 0 |   Gen 1 | Allocated |
+|-------------- |------------:|----------:|------------:|------------:|------:|--------:|---------:|--------:|----------:|
+| ExecuteDirect | 28,629.4 μs | 797.52 μs | 2,313.75 μs | 28,017.3 μs |  1.00 |    0.00 | 125.0000 | 62.5000 |    824 KB |
+|   ExecuteOpt1 | 28,861.4 μs | 799.67 μs | 2,268.54 μs | 27,982.5 μs |  1.01 |    0.11 | 125.0000 | 62.5000 |    896 KB |
+|     VisitOpt1 |    455.3 μs |  16.96 μs |    48.12 μs |    444.9 μs |  0.02 |    0.00 |   9.2773 |  0.4883 |     59 KB |
