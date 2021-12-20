@@ -217,6 +217,7 @@ public class UnitTests {
             VisitAndExecute = expression =>
                Queries.ExecuteExpression<object>(ExpressionOptimizer.Visit(expression));
 
+            // let visitOnly = ExpressionOptimizer.visit
             VisitOnly = expression =>
                 ExpressionOptimizer.Visit(expression);
 
