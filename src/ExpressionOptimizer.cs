@@ -213,6 +213,7 @@ public static class ExpressionOptimizer {
         /// </summary>
         public static Expression Associate(Expression e) =>
             e switch {
+                _ when Or(e) is var (l1, r1) && Or(l1) is var (l, r) => Expression.OrElse(Expression.OrElse(l, r), r1),
                 _ when Or(e) is var (l, r1) && Or(r1) is var (l1, r) => Expression.OrElse(l, Expression.OrElse(l1, r)),
                 _ when And(e) is var (l1, r1) && And(l1) is var (l, r) => Expression.AndAlso(Expression.AndAlso(l, r), r1),
                 _ when And(e) is var (l, r1) && And(r1) is var (l1, r) => Expression.AndAlso(l, Expression.AndAlso(l1, r)),
