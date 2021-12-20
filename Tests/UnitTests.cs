@@ -189,9 +189,9 @@ public class UnitTests {
     public class Benchmark {
         private Expression[] queries;
         internal Func<Expression, IList<object>> VisitAndExecute;
+        internal Func<Expression, Expression> VisitOnly;
 
         public Benchmark() {
-            var benchmark = this;
             var t = new List<int> { 1, 2, 3, 4, 5, 6, 7, 8, 9 };
 
             this.queries = new Expression[16]
@@ -215,7 +215,11 @@ public class UnitTests {
             };
 
             VisitAndExecute = expression =>
-                Queries.ExecuteExpression<object>(ExpressionOptimizer.Visit(expression));
+               Queries.ExecuteExpression<object>(ExpressionOptimizer.Visit(expression));
+
+            VisitOnly = expression =>
+                ExpressionOptimizer.Visit(expression);
+
         }
 
         [GlobalSetup]
@@ -243,16 +247,23 @@ public class UnitTests {
         /// <exception cref="ArgumentNullException"></exception>
         [Benchmark(Baseline = true)]
         public void ExecuteDirect() {
-            var resultsList = this.queries != null ? new List<object>[this.queries.Length] : throw new ArgumentNullException("queries");
-            for (var index = 0; index < resultsList.Length; ++index)
-                resultsList[index] = Queries.ExecuteExpression<object>(this.queries[index]);
+            _ = this.queries.Select(Queries.ExecuteExpression<object>).ToArray();
         }
 
         [Benchmark()]
         public void ExecuteOpt1() {
-            var resultsList = this.queries != null ? new List<object>[this.queries.Length] : throw new ArgumentNullException("queries");
-            for (var index = 0; index < resultsList.Length; ++index)
-                resultsList[index] = VisitAndExecute(this.queries[index]).ToList();
+            _ = this.queries.Select(VisitAndExecute).ToArray();
+        }
+
+        // F#
+        // [< Benchmark >]
+        // member this.VisitOpt1() = 
+        // let x = queries |> Array.map visitOnly
+        //     ()
+        [Benchmark()]
+        public void VisitOpt1() {
+            _ = this.queries.Select(VisitOnly).ToArray();
+
         }
     }
 }

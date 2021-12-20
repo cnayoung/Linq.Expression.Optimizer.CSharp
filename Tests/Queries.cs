@@ -175,8 +175,8 @@ namespace Tests {
         }
 
         public static void TestEq<a, b>(int[] xs, Func<IList<int>, a> qry) where a : IQueryable<b> {
-            var res = TestExpression<b, object?>(qry(xs.ToList()));
-            Assert.AreEqual(res.Item1, res.Item2);
+            var (objects, item2) = TestExpression<b, object?>(qry(xs.ToList()));
+            Assert.AreEqual(objects, item2);
         }
         public static void TestLt<a>(int[] xs, Func<IList<int>, IQueryable<a>> qry) {
             var expr = qry(xs.ToList()).Expression;

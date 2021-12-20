@@ -7,6 +7,10 @@ using Tests;
 var r = BenchmarkRunner.Run<UnitTests.Benchmark>();
 Console.WriteLine(r);
 Console.ReadKey();
+//var ut = new UnitTests.Benchmark();
+//for (var i = 0; i < 100; i++) {
+//    ut.VisitOpt1();
+//}
 return 0;
 
 // BenchmarkDotNet = v0.13.1, OS = Windows 10.0.22000
