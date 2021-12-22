@@ -249,10 +249,16 @@ public static class ExpressionOptimizer {
 
         public static Expression Identity(Expression e) =>
             e switch {
-                _ when And(e) is var ( l, p) && True(l) is { } => p,
-                _ when And(e) is var ( p, r) && True(r) is { } => p,
-                _ when Or(e) is var (l, p) && False(l) is { } => p,
-                _ when Or(e) is var (p, r) && False(r) is { } => p,
+                _ when And(e) is var (l, r) => (l, r: r) switch {
+                    _ when True(l) is { } => r,
+                    _ when True(r) is { } => l,
+                    _ => e
+                },
+                _ when Or(e) is var (l, r) => (l, r) switch {
+                    _ when False(l) is { } => r,
+                    _ when False(r) is { } => l,
+                    _ => e
+                },
                 var noHit => noHit
             };
 
@@ -267,14 +273,20 @@ public static class ExpressionOptimizer {
 
         public static Expression Absorb(Expression e) =>
             e switch {
-                _ when And(e) is var (p, r) && Or(r) is var (p1L, _) && p.Equals(p1L) => p,
-                _ when And(e) is var (p, r) && Or(r) is var (_, p1R) && p.Equals(p1R) => p,
-                _ when And(e) is var (l, p) && Or(l) is var (p1L, _) && p.Equals(p1L) => p,
-                _ when And(e) is var (l,p) && Or(l) is var ( _, p1R) && p.Equals(p1R) => p,
-                _ when Or(e) is var (p, r) && And(r) is var (p1L, _) && p.Equals(p1L) => p,
-                _ when Or(e) is var (p, r) && And(r) is var ( _, p1R) && p.Equals(p1R) => p,
-                _ when Or(e) is var (l, p) && And(l) is var (p1L, _) && p.Equals(p1L) => p,
-                _ when Or(e) is var (l, p) && And(l) is var ( _, p1R) && p.Equals(p1R) => p,
+                _ when And(e) is var (l, r) => (l, r) switch {
+                    _ when Or(r) is var (p1L, _) && l.Equals(p1L) => l,
+                    _ when Or(r) is var (_, p1R) && l.Equals(p1R) => l,
+                    _ when Or(l) is var (p1L, _) && r.Equals(p1L) => r,
+                    _ when Or(l) is var (_, p1R) && r.Equals(p1R) => r,
+                    _ => e
+                },
+                _ when Or(e) is var (l, r) => (l, r) switch {
+                    _ when And(r) is var (p1L, _) && l.Equals(p1L) => l,
+                    _ when And(r) is var (_, p1R) && l.Equals(p1R) => l,
+                    _ when And(l) is var (p1L, _) && r.Equals(p1L) => r,
+                    _ when And(l) is var (_, p1R) && r.Equals(p1R) => r,
+                    _ => e
+                },
                 var noHit => noHit
             };
 
@@ -287,10 +299,16 @@ public static class ExpressionOptimizer {
 
         public static Expression Complement(Expression e) =>
             e switch {
-                _ when And(e) is var (p, p1) && Not(p1)?.Equals(p) is { } => Expression.Constant(false, typeof(bool)),
-                _ when And(e) is var (p, p1) && Not(p)?.Equals(p1) is { } => Expression.Constant(false, typeof(bool)),
-                _ when Or(e) is var (p, p1) && Not(p1)?.Equals(p) is { } => Expression.Constant(true, typeof(bool)),
-                _ when Or(e) is var (p, p1) && Not(p)?.Equals(p1) is { } => Expression.Constant(true, typeof(bool)),
+                _ when And(e) is var (p, p1) => (p, p1) switch {
+                    _ when Not(p1)?.Equals(p) is { } => Expression.Constant(false, typeof(bool)),
+                    _ when Not(p)?.Equals(p1) is { } => Expression.Constant(false, typeof(bool)),
+                    _ => e
+                },
+                _ when Or(e) is var (p, p1) => (p, p1) switch {
+                    _ when Not(p1)?.Equals(p) is { } => Expression.Constant(true, typeof(bool)),
+                    _ when Not(p)?.Equals(p1) is { } => Expression.Constant(true, typeof(bool)),
+                    _ => e
+                },
                 var noHit => noHit
             };
 
