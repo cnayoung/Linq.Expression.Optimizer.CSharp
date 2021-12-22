@@ -130,8 +130,7 @@ public static class ExpressionOptimizer {
         public static Expression CutNotUsedCondition(Expression e) =>
             (e.NodeType, e) switch {
                 (ExpressionType.Conditional, ConditionalExpression ce) =>
-                    ce.Test switch {
-                        // For now, only direct booleans conditions are optimized to select query:
+                    ce.Test switch { // For now, only direct booleans conditions are optimized to select query:
                         ConstantExpression c when c.Value?.Equals(true) ?? false => ce.IfTrue,
                         ConstantExpression c when c.Value?.Equals(false) ?? false => ce.IfFalse,
                         _ => e
